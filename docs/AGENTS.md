@@ -38,7 +38,10 @@ Version name for next release: `1.0.9`.
 Never submit a build with versionCode 15 or lower.
 
 ### 4. Media vs Document Routing
-**Media tools → on-device via `ffmpeg_kit_flutter`** — never network calls.
+**Media tools → on-device via `ffmpeg_kit_flutter_new`** — never network calls.
+# Original ffmpeg_kit_flutter_full_gpl was abandoned; Maven binaries deleted April 2025.
+# Replaced with ffmpeg_kit_flutter_new (same FFmpeg core, maintained fork).
+# Import paths: package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart  
 **Document tools → backend via `backend_service.dart`** — never FFmpegKit.
 Do not mix these. Do not route a media tool through the backend.
 
