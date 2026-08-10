@@ -1,2 +1,111 @@
-// lib/features/video_compression/video_compression_provider.dart - Video compression provider
-// TODO: Implement video_compression_provider.dart
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/models/conversion_result.dart';
+import '../../core/services/ffmpeg_service.dart';
+import '../../core/services/file_service.dart';
+import '../media_tools/media_conversion_utils.dart';
+import 'log_profiles.dart';
+
+enum VideoCompressionQuality {
+  high,
+  balanced,
+  small,
+}
+
+extension VideoCompressionQualityX on VideoCompressionQuality {
+  String get displayName {
+    switch (this) {
+      case VideoCompressionQuality.high:
+        return 'High Quality';
+      case VideoCompressionQuality.balanced:
+        return 'Balanced';
+      case VideoCompressionQuality.small:
+        return 'Small File';
+    }
+  }
+
+  int get crf {
+    switch (this) {
+      case VideoCompressionQuality.high:
+        return 18;
+      case VideoCompressionQuality.balanced:
+        return 23;
+      case VideoCompressionQuality.small:
+        return 28;
+    }
+  }
+}
+
+class VideoCompressionConfig {
+  final String videoCodec;
+  final VideoCompressionQuality quality;
+  final String resolution;
+  final String logProfileId;
+
+  const VideoCompressionConfig({
+    this.videoCodec = 'libx264',
+    this.quality = VideoCompressionQuality.balanced,
+    this.resolution = 'original',
+    this.logProfileId = 'standard',
+  });
+}
+
+class VideoCompressionNotifier extends AsyncNotifier<ConversionResult?> {
+  String? _activeJobId;
+
+  @override
+  Future<ConversionResult?> build() async => null;
+
+  Future<void> convert({
+    required File inputFile,
+    required VideoCompressionConfig config,
+  }) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() => _run(inputFile, config));
+  }
+
+  void cancel() {
+    final jobId = _activeJobId;
+    if (jobId != null) {
+      unawaited(ffmpegService.cancelSession(jobId));
+    }
+    state = const AsyncData(null);
+  }
+
+  Future<ConversionResult> _run(File inputFile, VideoCompressionConfig config) async {
+    final jobId = uuid.v4();
+    _activeJobId = jobId;
+
+    final outputPath = await buildFullOutputPath(inputFile, 'mp4');
+    final tempInputPath = await fileService.copyToTemp(inputFile.path, jobId);
+    final profile = logProfileById(config.logProfileId);
+    final dimensions = dimensionsForResolution(config.resolution);
+    final filterChain = profile.filterChain
+        .replaceAll('{w}', dimensions.width)
+        .replaceAll('{h}', dimensions.height);
+    final filterArg = config.resolution == 'original' && profile.id == 'standard'
+        ? ''
+        : '-vf "$filterChain"';
+    final command =
+        '-y -i ${quotePath(tempInputPath)} -c:v ${config.videoCodec} -crf ${config.quality.crf} '
+        '-preset medium $filterArg -c:a copy ${quotePath(outputPath)}';
+
+    try {
+      return await ffmpegService.execute(
+        command: command,
+        jobId: jobId,
+        outputPath: outputPath,
+      );
+    } finally {
+      if (_activeJobId == jobId) {
+        _activeJobId = null;
+      }
+    }
+  }
+}
+
+final videoCompressionProvider =
+    AsyncNotifierProvider<VideoCompressionNotifier, ConversionResult?>(VideoCompressionNotifier.new);

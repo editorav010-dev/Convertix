@@ -1,13 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AudioConverterScreen extends StatelessWidget {
+import '../../shared/constants/format_constants.dart';
+import '../media_tools/media_tool_screen.dart';
+import 'audio_converter_provider.dart';
+
+class AudioConverterScreen extends ConsumerWidget {
   const AudioConverterScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Audio Converter')),
-      body: const Center(child: Text('Audio Converter - Coming Soon')),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(audioConverterProvider);
+    final notifier = ref.read(audioConverterProvider.notifier);
+
+    return MediaToolScreen(
+      title: 'Audio Converter',
+      inputLabel: 'Select Audio',
+      allowedExtensions: audioInputFormats,
+      outputFormats: audioOutputFormats,
+      initialOutputFormat: audioOutputFormats.first,
+      conversionState: state,
+      showAudioBitrate: true,
+      hideBitrateForLossless: true,
+      onConvert: (inputFile, settings) => notifier.convert(
+        inputFile: inputFile,
+        config: AudioConverterConfig(
+          outputFormat: settings.outputFormat,
+          bitrateKbps: settings.bitrateKbps,
+        ),
+      ),
+      onCancel: notifier.cancel,
     );
   }
 }
