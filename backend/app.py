@@ -13,6 +13,7 @@ import zipfile
 from uuid import uuid4
 
 import fitz  # PyMuPDF
+import gradio as gr
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
 from PIL import Image
@@ -478,3 +479,12 @@ async def split_pdf(
     except Exception as e:
         shutil.rmtree(job_dir, ignore_errors=True)
         raise HTTPException(status_code=500, detail=f"PDF split failed: {str(e)}")
+
+# Mount a dummy Gradio app so Hugging Face registers this as a Gradio Space
+demo = gr.Interface(
+    fn=lambda: "Convertix Backend is Running. Use the API endpoints.",
+    inputs=None,
+    outputs="text",
+    title="Convertix Backend",
+)
+app = gr.mount_gradio_app(app, demo, path="/")
