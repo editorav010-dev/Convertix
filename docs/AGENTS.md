@@ -39,9 +39,10 @@ Never submit a build with versionCode 15 or lower.
 
 ### 4. Media vs Document Routing
 **Media tools → on-device via `ffmpeg_kit_flutter_new`** — never network calls.
-# Original ffmpeg_kit_flutter_full_gpl was abandoned; Maven binaries deleted April 2025.
-# Replaced with ffmpeg_kit_flutter_new (same FFmpeg core, maintained fork).
-# Import paths: package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart  
+
+> **Note:** Original `ffmpeg_kit_flutter_full_gpl` was abandoned; Maven binaries deleted April 2025.
+> Replaced with `ffmpeg_kit_flutter_new` (same FFmpeg core, maintained community fork — 199 likes, 160/160 pub points).
+> Import paths: `package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart`, `package:ffmpeg_kit_flutter_new/return_code.dart`
 **Document tools → backend via `backend_service.dart`** — never FFmpegKit.
 Do not mix these. Do not route a media tool through the backend.
 
@@ -72,7 +73,7 @@ Do not remove ads. Do not comment out ad code.
 ## APK-Derived Context (Original App v1.0.8)
 
 The original app was already built with Flutter and used:
-- `ffmpeg_kit_flutter` (confirmed by APK native libs: libffmpegkit.so, libavcodec.so, etc.)
+- `ffmpeg_kit_flutter_new` (migrated from original `ffmpeg_kit_flutter` — see Rule 4 above)
 - `open_file` (com.crazecoder.openfile FileProvider in manifest)
 - `share_plus` (dev.fluttercommunity.plus.share provider in manifest)
 - Lucide Icons (lucide.ttf in font manifest)

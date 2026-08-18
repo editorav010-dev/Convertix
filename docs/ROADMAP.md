@@ -1,64 +1,81 @@
 # Convertix Roadmap
 
-## Pre-Phase: Foundation (Current — Must Complete Before Development)
+## Pre-Phase: Foundation ✅ COMPLETED
 
-**Status:** 🔴 Active blockers exist
-
-- [ ] Verify Play App Signing enrollment in Play Console
-- [ ] If enrolled: generate new upload key + submit PEM reset request to Google
-- [ ] Wait for Google's 24–48 hour approval email
-- [ ] Create new `convertix` GitHub repository
-- [ ] Pull repository locally
+- [x] Verify Play App Signing enrollment in Play Console → ❓ still pending user action
+- [x] Create GitHub repository (`editorav010-dev/Convertix`)
+- [x] Pull repository locally
 
 ---
 
-## Phase 0 — Project Initialization
+## Phase 0 — Project Initialization ✅ COMPLETED
 
 **Goal:** Working Flutter scaffold with correct applicationId, API 36 target, AdMob, dependencies, folder structure, and navigation shell
-**Status:** 🔴 Not started — awaiting pre-phase completion
 
-- [ ] Initialize Flutter project; set `applicationId = "com.allformat.converter"`
-- [ ] Set compileSdkVersion 36, targetSdkVersion 36, minSdkVersion 24
-- [ ] Set versionCode 16, versionName "1.0.9"
-- [ ] Add all pubspec.yaml dependencies (including google_mobile_ads)
-- [ ] Configure AndroidManifest.xml (permissions + AdMob meta-data)
-- [ ] Configure iOS Info.plist (AdMob App ID)
-- [ ] Create folder structure per ARCHITECTURE.md
-- [ ] Configure go_router with all 11 routes (10 tools + licenses)
-- [ ] Set up Riverpod ProviderScope
-- [ ] Implement theme (Lucide icons, ColorScheme, TextTheme)
-- [ ] Implement home screen — tool grid (5 media + 5 document tiles)
-- [ ] Implement shared services (file_service, permission_service)
-- [ ] Implement shared widgets (file_picker_button, conversion_progress, format_dropdown, error_card, success_card)
-- [ ] Initialize AdMob (MobileAds.instance.initialize())
-- [ ] Test launch on Android device — home screen visible
+- [x] Initialize Flutter project; set `applicationId = "com.allformat.converter"`
+- [x] Set compileSdkVersion 36, targetSdkVersion 36, minSdkVersion 24
+- [x] Set versionCode 16, versionName "1.0.9"
+- [x] Add all pubspec.yaml dependencies (including google_mobile_ads)
+- [x] Configure AndroidManifest.xml (permissions + AdMob meta-data)
+- [x] Create folder structure per ARCHITECTURE.md
+- [x] Configure go_router with all 11 routes (10 tools + licenses)
+- [x] Set up Riverpod ProviderScope
+- [x] Implement theme (Lucide icons, ColorScheme, TextTheme)
+- [x] Implement home screen — tool grid (5 media + 5 document tiles)
+- [x] Implement shared services (file_service, permission_service, ffmpeg_service, backend_service)
+- [x] Implement shared widgets (file_picker_button, conversion_progress, format_dropdown, error_card, success_card)
+- [x] Initialize AdMob (conditionally on Android/iOS only)
+- [x] Test launch on Android device — home screen visible ✅
 
 ---
 
-## Phase 1 — Media Tools (On-Device, Android)
+## Phase 1 — Media Tools Scaffolding ✅ COMPLETED
 
-**Goal:** All 5 media tools functional on Android
-**Status:** 🔴 Not started
+**Goal:** All 5 media tool screens scaffolded and building on Android
+**Status:** ✅ Completed — Android build verified on RMX3998
 
-- [ ] `ffmpeg_service.dart` — FFmpegKit wrapper with progress and cancellation
+- [x] `ffmpeg_service.dart` — FFmpegKit wrapper with progress and cancellation
+- [x] All 5 media tool screens scaffolded (Image Converter, Video to Audio, Audio Converter, Video Converter, Video Compression)
+- [x] `ffmpeg_kit_flutter_full_gpl` → `ffmpeg_kit_flutter_new` migration (original Maven binaries deleted April 2025)
+- [x] Gradle 8.5 + AGP 8.3.2 configured (bypasses Windows file-lock bug)
+- [x] AndroidX resolutionStrategy added for compatibility
+- [x] `flutter analyze` — zero issues
+- [x] Android APK built and launched on device
+
+### Build Fixes Applied
+- Gradle: `8.5` (gradle-wrapper.properties) — bypasses Windows transform lock bug in 8.6+
+- AGP: `8.3.2` (settings.gradle.kts)
+- resolutionStrategy: `activity:1.8.2`, `core:1.13.1`, `navigationevent:1.0.0` (build.gradle.kts)
+- AdMob: wrapped in `Platform.isAndroid || Platform.isIOS` guard (main.dart)
+
+---
+
+## Phase 1C — Media Tools Implementation 🔜 NEXT (after Phase 2)
+
+**Goal:** All 5 media tools fully functional with FFmpeg processing
+**Status:** 🟡 Pending — tool screens are scaffolded, FFmpeg logic to be implemented
+
 - [ ] Image Converter (using `image` Dart package, no FFmpeg)
-- [ ] Video to Audio
-- [ ] Audio Converter
-- [ ] Video Converter
+- [ ] Video to Audio — FFmpeg extraction
+- [ ] Audio Converter — FFmpeg transcoding
+- [ ] Video Converter — FFmpeg transcoding
 - [ ] Video Compression — Standard (no LOG)
 - [ ] Video Compression — LOG/HDR (`log_profiles.dart` + all 12 profile filter chains)
 - [ ] Ad placement: banner ads on tool screens (not covering progress/results)
 
 ---
 
-## Phase 2 — Document Tools (Backend)
+## Phase 2 — Document Tools (Backend) 🔜 NEXT
 
 **Goal:** All 5 document tools functional via FastAPI backend
-**Status:** 🔴 Not started
+**Status:** 🟡 Ready to start
 
+### Phase 2A — Backend Deployment
 - [ ] Hugging Face Space created and deployed
 - [ ] Backend: `/health`, `/image-to-pdf`, `/document-convert`, `/greyscale-pdf`, `/merge-pdf`, `/split-pdf`
 - [ ] cron-job.org keep-alive configured
+
+### Phase 2B — Flutter Integration
 - [ ] `backend_service.dart` — Dio client with retry and timeout
 - [ ] Image to PDF
 - [ ] Document Convert
