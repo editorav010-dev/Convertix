@@ -480,14 +480,10 @@ async def split_pdf(
         shutil.rmtree(job_dir, ignore_errors=True)
         raise HTTPException(status_code=500, detail=f"PDF split failed: {str(e)}")
 
-try:
-    import spaces
-    @spaces.GPU
-    def dummy_gpu_func():
-        return "Convertix Backend is Running. Use the API endpoints. (ZeroGPU mode)"
-except ImportError:
-    def dummy_gpu_func():
-        return "Convertix Backend is Running. Use the API endpoints. (CPU mode)"
+import spaces
+@spaces.GPU
+def dummy_gpu_func():
+    return "Convertix Backend is Running. Use the API endpoints. (ZeroGPU mode)"
 
 # Mount a dummy Gradio app so Hugging Face registers this as a Gradio Space
 demo = gr.Interface(
