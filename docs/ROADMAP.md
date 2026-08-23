@@ -50,38 +50,40 @@
 
 ---
 
-## Phase 1C — Media Tools Implementation 🔜 NEXT (after Phase 2)
+## Phase 1C — Media Tools Implementation ✅ COMPLETED
 
 **Goal:** All 5 media tools fully functional with FFmpeg processing
-**Status:** 🟡 Pending — tool screens are scaffolded, FFmpeg logic to be implemented
+**Status:** ✅ Completed
 
-- [ ] Image Converter (using `image` Dart package, no FFmpeg)
-- [ ] Video to Audio — FFmpeg extraction
-- [ ] Audio Converter — FFmpeg transcoding
-- [ ] Video Converter — FFmpeg transcoding
-- [ ] Video Compression — Standard (no LOG)
-- [ ] Video Compression — LOG/HDR (`log_profiles.dart` + all 12 profile filter chains)
-- [ ] Ad placement: banner ads on tool screens (not covering progress/results)
+- [x] Image Converter (using `image` Dart package, no FFmpeg)
+- [x] Video to Audio — FFmpeg extraction
+- [x] Audio Converter — FFmpeg transcoding
+- [x] Video Converter — FFmpeg transcoding
+- [x] Video Compression — Standard (no LOG)
+- [x] Video Compression — LOG/HDR (`log_profiles.dart` + all 12 profile filter chains)
+- [x] Ad placement: banner ads on tool screens (not covering progress/results)
 
 ---
 
-## Phase 2 — Document Tools (Backend) 🔜 NEXT
+## Phase 2 — Document Tools (Backend) ✅ COMPLETED
 
-**Goal:** All 5 document tools functional via FastAPI backend
-**Status:** 🟡 Ready to start
+**Goal:** All 5 document tools functional via FastAPI/Gradio backend
+**Status:** ✅ Completed
 
-### Phase 2A — Backend Deployment
-- [ ] Hugging Face Space created and deployed
-- [ ] Backend: `/health`, `/image-to-pdf`, `/document-convert`, `/greyscale-pdf`, `/merge-pdf`, `/split-pdf`
-- [ ] cron-job.org keep-alive configured
+### Phase 2A — Backend Deployment ✅
+- [x] Hugging Face Space created and deployed (Gradio backend)
+- [x] Backend: `/health`, `/image-to-pdf`, `/document-convert`, `/greyscale-pdf`, `/merge-pdf`, `/split-pdf`
+- [ ] cron-job.org keep-alive configured (deferred)
 
-### Phase 2B — Flutter Integration
-- [ ] `backend_service.dart` — Dio client with retry and timeout
-- [ ] Image to PDF
-- [ ] Document Convert
-- [ ] Greyscale PDF
-- [ ] Merge PDF
-- [ ] Split PDF
+### Phase 2B — Flutter Integration ✅
+**Status:** ✅ Completed — all 5 tools verified converting on RMX3998 (Android 16)
+
+- [x] `backend_service.dart` — Dio client, Gradio protocol (`/upload` → `/queue/join` → SSE `/queue/data`)
+- [x] Image to PDF — verified on device (valid PDF output)
+- [x] Document Convert — verified on device (valid PDF output)
+- [x] Greyscale PDF — verified on device (valid PDF output)
+- [x] Merge PDF — verified on device (valid PDF output)
+- [x] Split PDF — verified on device (valid multi-file ZIP output)
 
 ---
 

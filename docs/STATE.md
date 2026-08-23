@@ -3,11 +3,12 @@
 ## Current Phase
 
 Phase 1 — COMPLETED ✅
-Phase 2A — NEXT (Backend Deployment)
+Phase 2A — COMPLETED ✅ (Backend Deployment)
+Phase 2B — COMPLETED ✅ (Document Tools — all 5 verified on device)
 
 ## Status
 
-🟢 Phase 1 complete — Android build verified on device (RMX3998), `flutter analyze` clean, all scaffolding in place.
+🟢 Phase 2B complete — all 5 document tools convert successfully on RMX3998 (Android 16) against the Gradio backend. `flutter analyze` clean.
 
 ---
 
@@ -42,6 +43,19 @@ Phase 2A — NEXT (Backend Deployment)
 - [x] `ffmpeg_kit_flutter_full_gpl` replaced with `ffmpeg_kit_flutter_new` (original Maven binaries deleted April 2025)
 - [x] Android build succeeded: `√ Built build\app\outputs\flutter-apk\app-debug.apk`
 - [x] App installed and launched on RMX3998 via Impeller (Vulkan)
+- [x] `flutter analyze` — zero issues
+
+### ✅ Phase 2 — Document Tools (Gradio backend)
+- [x] Backend deployed to Hugging Face Space (Gradio 4.36.0, ZeroGPU)
+- [x] `backend_service.dart` rewritten for Gradio protocol: `/upload` → `/queue/join` → SSE `/queue/data`
+- [x] SSE stream decoded with `utf8.decoder.bind(...)` (correct `StreamTransformer<Uint8List,String>`)
+- [x] Fixed output-path bug: providers now join `getOutputDir()` with the bare filename from `buildOutputPath` (was writing to a read-only CWD)
+- [x] All 5 tools verified on RMX3998 (Android 16) with valid output files:
+  - Document Convert — `.pptx` → PDF (3.3 MB, valid `%PDF`)
+  - Image to PDF — 2 images → PDF (608 KB, valid `%PDF`)
+  - Greyscale PDF — PDF → PDF (1.2 MB, valid `%PDF`)
+  - Merge PDF — 2 PDFs → PDF (4.5 MB, valid `%PDF`)
+  - Split PDF — 30-page PDF → ZIP of 6 PDFs (19.4 MB, valid `PK` archive)
 - [x] `flutter analyze` — zero issues
 
 ---
@@ -158,7 +172,8 @@ If your app was published without enrolling in Play App Signing (possible only f
 
 ## What Needs to Happen Next
 
-- [ ] **Phase 2A** — Deploy FastAPI backend to Hugging Face Space
-- [ ] **Phase 2B** — Implement 5 document tool screens with backend integration
+- [x] **Phase 2A** — Deploy Gradio backend to Hugging Face Space
+- [x] **Phase 2B** — Implement 5 document tool screens with backend integration
+- [x] **Phase 2B** — Verify all 5 document tools convert successfully on device (RMX3998)
 - [ ] Check Play App Signing enrollment in Play Console
 - [ ] If enrolled: generate new upload key and submit reset request
