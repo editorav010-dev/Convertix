@@ -56,3 +56,12 @@ key.properties
 
 # Misc
 *.log
+
+# Scratch / debug probe scripts
+fix.py
+check_gradio.js
+gradio_config.json
+test_gradio.dart
+test_gradio.js
+test_gradio.py
+test_gradio_join.js
