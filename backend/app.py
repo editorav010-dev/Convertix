@@ -1,5 +1,12 @@
+import gradio_client.utils as _gc_utils
+_original_json_schema_fn = _gc_utils._json_schema_to_python_type
+def _patched_json_schema_to_python_type(schema, defs=None):
+    if not isinstance(schema, dict):
+        return "Any"
+    return _original_json_schema_fn(schema, defs)
+_gc_utils._json_schema_to_python_type = _patched_json_schema_to_python_type
+
 import gradio as gr
-import spaces
 import os
 import subprocess
 import shutil
@@ -40,45 +47,27 @@ def run_libreoffice_conversion(input_path: str, output_dir: str, output_format: 
     except Exception as e:
         raise Exception(f"Conversion failed: {str(e)}")
 
-@spaces.GPU
 def health_check():
     return "ok"
 
-@spaces.GPU
 def convert_document(input_file_path, output_format, pages=""):
     if not input_file_path:
         raise gr.Error("No input file provided")
     
     job_dir = tempfile.mkdtemp()
+    supported_formats = ['pdf', 'docx', 'xlsx', 'pptx', 'odt', 'ods', 'odp', 'rtf', 'txt', 'csv']
     try:
-        if output_format in ['pdf', 'docx', 'xlsx', 'pptx']:
+        if output_format in supported_formats:
             result_path = run_libreoffice_conversion(input_file_path, job_dir, output_format)
             final_path = os.path.join(tempfile.gettempdir(), os.path.basename(result_path))
             shutil.copy2(result_path, final_path)
             return final_path
-            
-        elif output_format in ['jpg', 'png']:
-            doc = pymupdf.open(input_file_path)
-            page_num = 0
-            if pages and pages.isdigit():
-                page_num = int(pages) - 1
-            if page_num < 0 or page_num >= len(doc):
-                page_num = 0
-                
-            page = doc.load_page(page_num)
-            pix = page.get_pixmap(matrix=pymupdf.Matrix(2, 2))
-            
-            final_path = os.path.join(tempfile.gettempdir(), f"output.{output_format}")
-            pix.save(final_path)
-            return final_path
-            
         else:
             raise gr.Error(f"Unsupported format: {output_format}")
             
     finally:
         shutil.rmtree(job_dir, ignore_errors=True)
 
-@spaces.GPU
 def split_pdf(input_file_path, split_by):
     if not input_file_path:
         raise gr.Error("No input file provided")
@@ -113,7 +102,6 @@ def split_pdf(input_file_path, split_by):
     finally:
         shutil.rmtree(job_dir, ignore_errors=True)
 
-@spaces.GPU
 def image_to_pdf(image_paths):
     if not image_paths:
         raise gr.Error("No images provided")
@@ -134,7 +122,6 @@ def image_to_pdf(image_paths):
     doc.close()
     return out_path
 
-@spaces.GPU
 def greyscale_pdf(input_file_path):
     if not input_file_path:
         raise gr.Error("No input file provided")
@@ -154,7 +141,6 @@ def greyscale_pdf(input_file_path):
     doc.close()
     return out_path
 
-@spaces.GPU
 def merge_pdf(pdf_paths):
     if not pdf_paths or len(pdf_paths) < 2:
         raise gr.Error("Need at least 2 PDFs to merge")
@@ -175,7 +161,7 @@ def merge_pdf(pdf_paths):
     return out_path
 
 with gr.Blocks(title="Convertix API") as demo:
-    gr.Markdown("# Convertix Backend API (ZeroGPU)")
+    gr.Markdown("# Convertix Backend API")
     
     with gr.Tab("Health"):
         health_btn = gr.Button("Check Health")
@@ -184,7 +170,7 @@ with gr.Blocks(title="Convertix API") as demo:
         
     with gr.Tab("Convert Document"):
         conv_in = gr.File(label="Input Document", type="filepath")
-        conv_fmt = gr.Dropdown(choices=["pdf", "docx", "xlsx", "pptx", "jpg", "png"], label="Target Format")
+        conv_fmt = gr.Dropdown(choices=["pdf", "docx", "xlsx", "pptx", "odt", "ods", "odp", "rtf", "txt", "csv"], label="Target Format")
         conv_pages = gr.Textbox(label="Page (for images)", placeholder="1")
         conv_btn = gr.Button("Convert")
         conv_out = gr.File(label="Output Document")

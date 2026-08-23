@@ -1,5 +1,5 @@
+import '../../../shared/constants/format_constants.dart';
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_file/open_file.dart';
@@ -11,8 +11,6 @@ import '../../core/widgets/banner_ad_widget.dart';
 import '../../core/widgets/conversion_progress.dart';
 import '../../core/widgets/file_picker_button.dart';
 import '../../core/widgets/format_dropdown.dart';
-import '../../shared/constants/format_constants.dart';
-
 class LabelledOption<T> {
   final T value;
   final String label;

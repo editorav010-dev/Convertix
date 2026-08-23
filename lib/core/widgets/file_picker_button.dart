@@ -4,13 +4,19 @@ import 'package:file_picker/file_picker.dart';
 class FilePickerButton extends StatefulWidget {
   final List<String> allowedExtensions;
   final String label;
-  final Function(String path) onFilePicked;
+  final IconData? icon;
+  final bool allowMultiple;
+  final Function(String path)? onFilePicked;
+  final Function(List<String> paths)? onFilesPicked;
 
   const FilePickerButton({
     super.key,
     required this.allowedExtensions,
     required this.label,
-    required this.onFilePicked,
+    this.icon,
+    this.allowMultiple = false,
+    this.onFilePicked,
+    this.onFilesPicked,
   });
 
   @override
@@ -18,21 +24,25 @@ class FilePickerButton extends StatefulWidget {
 }
 
 class _FilePickerButtonState extends State<FilePickerButton> {
-  String? _selectedFileName;
+  List<String>? _selectedFileNames;
 
   Future<void> _pickFile() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: widget.allowedExtensions,
       withData: false,
+      allowMultiple: widget.allowMultiple,
     );
 
     if (result != null && result.files.isNotEmpty) {
-      final file = result.files.first;
       setState(() {
-        _selectedFileName = file.name;
+        _selectedFileNames = result.files.map((e) => e.name).toList();
       });
-      widget.onFilePicked(file.path!);
+      if (widget.allowMultiple && widget.onFilesPicked != null) {
+        widget.onFilesPicked!(result.paths.whereType<String>().toList());
+      } else if (!widget.allowMultiple && widget.onFilePicked != null) {
+        widget.onFilePicked!(result.paths.first!);
+      }
     }
   }
 
@@ -43,7 +53,7 @@ class _FilePickerButtonState extends State<FilePickerButton> {
       children: [
         OutlinedButton.icon(
           onPressed: _pickFile,
-          icon: const Icon(Icons.upload_file),
+          icon: Icon(widget.icon ?? Icons.upload_file),
           label: Text(widget.label),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size(double.infinity, 56),
@@ -52,10 +62,10 @@ class _FilePickerButtonState extends State<FilePickerButton> {
             ),
           ),
         ),
-        if (_selectedFileName != null) ...[
+        if (_selectedFileNames != null && !widget.allowMultiple) ...[
           const SizedBox(height: 8),
           Text(
-            _selectedFileName!,
+            _selectedFileNames!.first,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.primary,
                 ),
