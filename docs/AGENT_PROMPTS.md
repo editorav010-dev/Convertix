@@ -562,6 +562,20 @@ After implementing:
 - flutter analyze → zero issues
 - Test each tool end-to-end with deployed backend
 - Confirm backend log shows temp cleanup happening
+
+## Testing
+Verify each tool:
+1. Pick files (multiple for image-to-pdf/merge, single for others)
+2. Select output format/quality as shown in UI
+3. Tap "Convert" or "Process" and watch progress bar
+4. Confirm output file appears in app's downloads folder
+5. Open the output file (uses open_file or zip picker) and verify correctness
+6. Verify the correct backend endpoint was called (check terminal/backend logs)
+7. Confirm conversion completion banner is shown and ad is visible when not converting
+8. Check backend health via GET /health from your browser or curl (should return {"status": "ok"})
+
+Important: After completing all implementation, update STATE.md and ROADMAP.md and all needed markdowns files to reflect Phase 2B completion. Mark all 5 document tools as done. Then run a flutter analyze and fix any issue if any.
+
 ```
 
 ---

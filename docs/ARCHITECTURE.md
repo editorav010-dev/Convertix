@@ -114,8 +114,10 @@ lib/
 │   ├── services/
 │   │   ├── ffmpeg_service.dart       # wraps ffmpeg_kit_flutter; all media tool calls go here
 │   │   ├── backend_service.dart      # Dio-based client for all document tool API calls
-│   │   ├── file_service.dart         # temp + output file management; cleanup logic
-│   │   └── permission_service.dart   # storage + media permissions (Android + iOS)
+│   │   ├── file_service.dart         # temp file management; bare output FILENAME generation
+│   │   ├── file_source_service.dart  # WHERE input comes from — installed picker enumeration
+│   │   ├── output_location_service.dart  # WHERE outputs land — MediaStore public collections
+│   │   └── permission_service.dart   # DEAD CODE, and broken — see STATE.md open question 8
 │   │
 │   ├── models/
 │   │   ├── conversion_job.dart       # job ID, tool name, status, progress (0.0–1.0), timestamps
@@ -243,20 +245,29 @@ outside of this file without explicit instruction.
 
 ## Document Tool Execution Flow
 
+The backend is **Gradio**, not FastAPI multipart. `backend_service.dart` drives Gradio's REST API.
+`<prefix>` below is **auto-detected** by `_prefix()`: empty on Gradio 4 (the live Space), or
+`/gradio_api` on Gradio 5+.
+
 ```
-1. User selects file(s)
+1. User selects file(s) via file_picker (Storage Access Framework — no runtime permission)
          ↓
-2. permission_service.dart — check + request permission
+2. backend_service.dart — POST <prefix>/upload (multipart, field name "files")
+   → responds with a JSON array of server-side temp paths
          ↓
-3. backend_service.dart — build multipart FormData with file(s) + params
+3. POST <prefix>/call/[api_name]  body: {"data": [ ...positional args... ]}
+   — api_name comes from _apiNames, keyed by logical endpoint
+   — file args are wrapped as {"path": ..., "meta": {"_type": "gradio.FileData"}}
+   → responds with {"event_id": "..."}
          ↓
-4. Dio POST to BACKEND_BASE_URL/[endpoint]
-   — timeout: 60 seconds
-   — retry: 2 attempts on network failure (not on 4xx)
+4. GET <prefix>/call/[api_name]/[event_id]  ← SSE stream
+   — "event: heartbeat" / "event: generating"  → ignored, keeps connection alive
+   — "event: error"     → data is {"title": ..., "error": ...}  → surfaced to the user
+   — "event: complete"  → data is a JSON array; element 0 is the output FileData
          ↓
-5. Backend processes with LibreOffice / Pillow / PyMuPDF
+5. Backend processes with LibreOffice / PyMuPDF
          ↓
-6. Response: binary file stream (or ZIP for multi-output split)
+6. GET <prefix>/file=[FileData.path]   ← built from `path`, NOT from FileData.url
          ↓
 7. backend_service.dart — write response bytes to output file
    path: getApplicationDocumentsDirectory()/convertix/outputs/[filename].[ext]
@@ -264,51 +275,198 @@ outside of this file without explicit instruction.
 8. state = AsyncData(ConversionResult) → success_card renders
 ```
 
+> **Step 6 is load-bearing.** Gradio 4.36 returns a malformed `url` in the output FileData for jobs
+> submitted via `/call/<api_name>` (`/c/file=`, `/cal/file=`, … — the corruption length tracks the
+> api_name length) and those 404. `path` is always correct. See STATE.md → Backend Facts.
+
+### Endpoint mapping — names, not indices
+
+`_apiNames` in `backend_service.dart` maps each logical endpoint to the Gradio `api_name`
+declared by the matching `.click(..., api_name=...)` in `backend/app.py`:
+
+| Logical endpoint | Gradio `api_name` |
+|---|---|
+| `/health` | `health` |
+| `/document-convert` | `convert` |
+| `/split-pdf` | `split` |
+| `/image-to-pdf` | `image_to_pdf` |
+| `/greyscale-pdf` | `greyscale_pdf` |
+| `/merge-pdf` | `merge_pdf` |
+
+Because these are names, reordering or inserting Gradio tabs in `app.py` no longer misroutes
+calls. **Renaming** an `api_name` still requires updating this map. `GET <prefix>/info` lists
+the live names and each handler's parameter order.
+
+Positional argument order inside `_buildRequestData` must still match each handler's
+`inputs=[...]` list.
+
 ---
 
 ## Backend Architecture
 
-**Host:** Hugging Face Spaces (Docker)
-**Framework:** FastAPI + uvicorn
-**Conversion engine:** LibreOffice headless (`soffice --headless --convert-to`)
-**PDF engine:** PyMuPDF (`fitz`) for greyscale + split
-**Image engine:** Pillow for image-to-PDF
+**Host:** Hugging Face Spaces — `pandeypratham/libreoffice-converter`
+**Framework:** Gradio **4.36.0** (`gr.Blocks`), `sdk: docker`, hardware `cpu-basic`
+**Conversion engine:** LibreOffice headless (`libreoffice --headless --convert-to`)
+**PDF/image engine:** PyMuPDF (`pymupdf`) for greyscale, split, merge, and image-to-PDF
+
+> Pillow is **not** used; image-to-PDF goes through PyMuPDF's `convert_to_pdf()`.
+
+### Deployment mode
+
+The live Space is a **Docker** Space built from `Dockerfile` + `app.py`. `backend/requirements.txt`
+is the single source of version truth and the Dockerfile installs from it.
+
+A second Space, `darkframeshzn/convertix-backend` (Gradio 6.24.0, `sdk: gradio`, ZeroGPU), exists
+but is **not** used by the app — its handlers carry `@spaces.GPU` and its quota is exhausted.
 
 ### File Lifecycle on Backend
 
-```
-POST received
-   ↓
-Save to /tmp/[uuid]/input/   ← job-scoped temp directory
-   ↓
-Process → save to /tmp/[uuid]/output/
-   ↓
-Stream output bytes to client
-   ↓
-Schedule deletion of /tmp/[uuid]/ ← runs within 30 seconds of response sent
-```
+Each handler creates a job-scoped `tempfile.mkdtemp()`, writes its output into the process temp
+directory, and removes the job directory in a `finally`. Gradio serves the returned file from its
+own temp area and reaps it on restart.
 
 ### Backend Response Format
 
-- **Single file output:** raw binary response with correct `Content-Type` header
-- **Multi-file output (split PDF):** `application/zip` binary response
-- **Error:** JSON `{"detail": "human-readable message"}` with appropriate HTTP status
+All results come back through the SSE stream as Gradio `FileData` objects — never as a raw binary
+HTTP body:
+
+- **Single file output:** `{"path": ..., "url": ..., "orig_name": ..., "size": ...}`
+- **Multi-file output (split PDF):** the same shape, pointing at a server-built `.zip`
+- **Error:** `event: error` with `{"title": ..., "error": ...}`
 
 ---
 
-## Output File Naming
+## File Source Selection (Phase 5B)
+
+All 10 tools take input through one widget — `core/widgets/file_picker_button.dart`. It asks
+`FileSourceService` which sources exist, shows a chooser only when there is more than one, then
+launches the chosen source.
+
+### Nothing is hardcoded to a vendor
+
+`FileSourceResolver.kt` discovers sources with `queryIntentActivities`. Google Photos, Files, and
+any Gallery app appear because they resolved, not because they are named in code — if they are not
+installed they simply do not appear.
+
+**This requires the `<queries>` block in `AndroidManifest.xml`.** On API 30+ package visibility
+means an undeclared intent returns an *incomplete* list, so removing those entries silently hides
+installed apps rather than producing an error.
+
+### Three mechanisms, ordered best-first
+
+| Mechanism | What it is | Offered for |
+|---|---|---|
+| `photo_picker` | Android Photo Picker (`ACTION_PICK_IMAGES`) | image + video only |
+| `open_document` | System SAF document picker | every kind — always present on API 24+ |
+| `get_content` | A resolved third-party `ACTION_GET_CONTENT` activity | every kind |
+
+The Photo Picker is offered for image and video only — it cannot supply audio or documents. It is
+native on API 33+; on 30–32 it arrives via a Play system update, so presence is **probed**, not
+assumed. Below API 30 the device falls back to SAF and `GET_CONTENT`, which always work.
+
+### Per-tool mapping
+
+`FileSourceKind` decides which sources are *enumerated*; `allowedExtensions` decides what is
+*selectable*. They are separate on purpose:
+
+| Tool(s) | Kind |
+|---|---|
+| Image Converter | `image` |
+| Video Converter, Video Compression, Video to Audio | `video` |
+| Audio Converter | `audio` — file-manager first, no Photo Picker |
+| All 5 document tools **including Image to PDF** | `document` |
+
+Image to PDF passes `document` despite taking images: the brief specifies file managers for the
+document tools, while the image extensions still restrict what can be chosen. Do not "fix" this
+to `image`.
+
+### Why this stays permission-free
+
+Every mechanism is a picker intent, so **no runtime storage permission is needed on any API
+level**. That is the reason the app works unchanged from API 24 to 36. Replacing any of these with
+a direct filesystem read would reintroduce the permission problem described in
+`STATE.md` → `permission_service.dart`.
+
+### Picked files become real paths
+
+Media tools hand input to FFmpegKit and document tools upload it via Dio — both need a readable
+file, not a URI. `FilePickerDelegate` copies each picked content URI into
+`cacheDir/convertix_picks/`, preserving the provider-reported display name so the extension (which
+drives format detection downstream) survives.
+
+An empty result means **the user cancelled** — a normal outcome, not an error. Genuine failures
+surface as `FileSourceException` with codes `source_unavailable`, `copy_failed`,
+`pick_in_progress`, `bad_source`.
+
+> **Kotlin gotcha, learned the hard way:** Kotlin block comments **nest**. Writing a MIME wildcard
+> like image-slash-star inside a `/** … */` comment opens a nested comment and swallows the rest of
+> the file, producing a cascade of unrelated "unresolved reference" errors. Keep MIME wildcards in
+> string literals or `//` line comments.
+
+---
+
+## Output File Naming & Placement
+
+Two separate concerns, and conflating them has caused a real bug:
+
+### 1. Filename — `file_service.dart`
 
 ```dart
-// file_service.dart
 String buildOutputPath(String inputName, String targetExt) {
-  final base = path.basenameWithoutExtension(inputName);
+  final baseName = path.basenameWithoutExtension(inputName);
   final timestamp = DateTime.now().millisecondsSinceEpoch;
-  return '${outputDir}/${base}_${timestamp}.${targetExt}';
+  return '${baseName}_$timestamp.$targetExt';   // BARE FILENAME — no directory
 }
 ```
 
-Pattern: `[original_name]_[timestamp].[ext]`
-Example: `interview_video_1720000000000.mp3`
+Pattern: `[original_name]_[timestamp].[ext]` — e.g. `interview_video_1720000000000.mp3`
+
+**This returns a bare filename with no directory.** Treating it as a full path resolves writes
+against a read-only CWD — the bug fixed in `110bc57`. Never prefix it yourself.
+
+### 2. Placement — `output_location_service.dart` (Phase 5A)
+
+`OutputLocationService.publish()` is the single chokepoint for *where* an output lands. Tools pass
+the bare filename and their `ConvertixTool` value; the service owns the destination.
+
+| Tool | Collection | Folder |
+|---|---|---|
+| Image Converter | images | `DCIM/Images (Convertix)/` |
+| Video Converter, Video Compression | video | `Movies/Videos (Convertix)/` |
+| Audio Converter, Video to Audio | audio | `Music/Audio (Convertix)/` |
+| Image to PDF | documents | `Documents/Convertix/Image to PDF/` |
+| Document Converter | documents | `Documents/Convertix/Document Converter/` |
+| Greyscale PDF | documents | `Documents/Convertix/Greyscale PDF/` |
+| Merge PDF | documents | `Documents/Convertix/Merge PDF/` |
+| Split PDF | documents | `Documents/Convertix/Split PDF/` |
+
+Returns a `SavedOutput` carrying a **`content://` URI**, the final display name, and the relative
+directory. Phase 5D's Open / Show in Folder / Share consume the URI — never a raw path.
+
+### Platform channel — `com.allformat.convertix/media_store`
+
+`MediaStoreWriter.kt` implements one method, `saveToCollection`. Two write paths, because no single
+mechanism spans minSdk 24 → targetSdk 36:
+
+| API range | Mechanism |
+|---|---|
+| 29+ | `MediaStore` insert with `RELATIVE_PATH`; `IS_PENDING` guards the partial file |
+| 24–28 | Direct write under the external storage root + `MediaScannerConnection` scan |
+
+Behaviour that is deliberate, not incidental:
+
+- **Folder creation** — implicit from `RELATIVE_PATH` on 29+, `mkdirs()` on legacy. A folder the
+  user deletes is recreated on the next save.
+- **Collisions** — existing files are never overwritten; ` (1)`, ` (2)`… is appended.
+- **Failure** — a failed write deletes the pending MediaStore row so no phantom entry is indexed,
+  and the source file is left intact so the conversion result is never lost.
+- **Errors** surface as `PlatformException` codes → `OutputSaveException` with a user-facing message:
+  `insufficient_storage`, `permission_denied`, `io_error`, `source_missing`, `mkdir_failed`,
+  `insert_failed`, `no_external_storage`.
+- **Non-Android** falls back to app-private storage with `isPublic: false`, so `flutter run -d windows`
+  keeps working. iOS gets its own implementation in Phase 3.
+
+Temp files remain at `getTemporaryDirectory()/convertix/<jobId>/`, cleaned in a `finally`.
 
 ---
 

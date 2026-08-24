@@ -5,10 +5,26 @@
 Phase 1 — COMPLETED ✅
 Phase 2A — COMPLETED ✅ (Backend Deployment)
 Phase 2B — COMPLETED ✅ (Document Tools — all 5 verified on device)
+Phase 5A — COMPLETED ✅ (Output Location Architecture — infrastructure only, not yet wired to tools)
+Phase 5B — COMPLETED ✅ (Shared File-Source Selection — live in all 10 tools)
+Phase 5 — IN PROGRESS 🟡 (Product Polish, Shared UX & Output Structure) ← **next: 5C**
+
+**Phase 5 is scheduled before Phase 3.** The storage change is user-visible behaviour that should ship
+in the v1.0.9 submission, and Phase 3 is blocked on the Play upload-key reset (not yet requested), so
+Phase 5 costs no release time. Phase numbers were not renumbered — `Phase 3`/`Phase 4` are referenced
+across `ARCHITECTURE.md`, `CLAUDE.md`, and this file, and churning them buys nothing.
 
 ## Status
 
-🟢 Phase 2B complete — all 5 document tools convert successfully on RMX3998 (Android 16) against the Gradio backend. `flutter analyze` clean.
+🟢 Phase 2B complete — all 5 document tools working against the live backend, verified twice:
+by direct API probe (correct page counts, valid `%PDF` / `PK` magic bytes) and manually on-device
+(RMX3998, Android 16).
+
+The client was migrated from the `/queue/join` + numeric `fn_index` protocol to
+`POST /call/<api_name>` + SSE, so reordering Gradio tabs in `app.py` can no longer misroute calls.
+Two things were learned the hard way during that migration — see "Backend Facts" below.
+
+`flutter analyze` clean; `flutter test` passing; debug APK builds and installs.
 
 ---
 
@@ -57,6 +73,116 @@ Phase 2B — COMPLETED ✅ (Document Tools — all 5 verified on device)
   - Merge PDF — 2 PDFs → PDF (4.5 MB, valid `%PDF`)
   - Split PDF — 30-page PDF → ZIP of 6 PDFs (19.4 MB, valid `PK` archive)
 - [x] `flutter analyze` — zero issues
+
+---
+
+## Roadmap Evolution
+
+| When | Change | Reason |
+|---|---|---|
+| 2026-08-23 | **Phase 5 added** — Product Polish, Shared UX & Output Structure (sub-phases 5A–5G) | Product-polishing brief: predictable public output folders, shared file-source selection, "don't ask again" preference, unified Open/Show in Folder/Share, honest progress + ETA across all 10 tools |
+| 2026-08-23 | Phase 5 **scheduled before Phase 3**; Phase 4 now requires Phase 5 | Storage behaviour should ship in the v1.0.9 submission; Phase 3 is blocked on the upload-key reset anyway |
+| 2026-08-23 | Open questions **#1 and #3 resolved** — Kotlin platform channel; content-type-explicit folder names | 5A is unblocked and ready to plan |
+| 2026-08-23 | **5A complete** — MediaStore output layer built (not yet wired to tools) | Storage architecture in place for 5D/5F |
+| 2026-08-23 | **5B complete** — file-source selection live in all 10 tools; open questions **#4 and #5 resolved** | Picker enumeration works; permission-free property preserved |
+
+---
+
+## ❓ Open Questions — Phase 5 Storage & Pickers
+
+Recorded rather than guessed. Each must be answered before the corresponding sub-phase is implemented.
+
+### 1. MediaStore write mechanism — ✅ RESOLVED 2026-08-23
+
+Outputs currently go to `getApplicationDocumentsDirectory()/convertix/outputs/` (`file_service.dart:18`)
+— app-private and **invisible to Gallery by design**. Writing to `DCIM/`, `Movies/`, `Music/`, and
+`Documents/` requires MediaStore inserts, and **no package in `pubspec.yaml` can do that**.
+
+**Decision: a Kotlin platform channel** in `android/app/src/main/kotlin/`. Rationale — no new dependency
+(`AGENT_RULES.md` §3D satisfied), and one mechanism covers all four collections. No available package
+covers `Music/` *and* `Documents/` cleanly; gallery-oriented packages handle images/video only, which
+would leave a second hand-rolled path for Audio Converter and the five document tools anyway.
+
+The channel must return a **content URI** to Dart, not a filesystem path — `open_file` / `share_plus`
+in 5D consume that.
+
+### 2. minSdk 24 needs two write paths
+
+`minSdk` is 24 and `targetSdk` is 36, so a single mechanism will not cover the range:
+
+| API range | Mechanism |
+|---|---|
+| 29+ | MediaStore insert with `RELATIVE_PATH` |
+| 24–28 | Direct file write + `MediaScannerConnection` scan |
+
+`WRITE_EXTERNAL_STORAGE` is already correctly declared with `android:maxSdkVersion="28"`, so the legacy
+branch is permitted. Untested on any API < 36 device — only RMX3998 (Android 16) is available.
+
+### 3. Folder naming — ✅ RESOLVED 2026-08-23
+
+**Decision: the brief's original, content-type-explicit naming.**
+
+```text
+DCIM/Images (Convertix)/
+Movies/Videos (Convertix)/
+Music/Audio (Convertix)/
+Documents/Convertix/
+  ├─ Image to PDF/
+  ├─ Document Converter/
+  ├─ Greyscale PDF/
+  ├─ Merge PDF/
+  └─ Split PDF/
+```
+
+Spaces and parentheses are valid in a MediaStore `RELATIVE_PATH`. Phase 5G must confirm the folders
+render with the exact names across file managers and that no manager escapes or mangles the parentheses.
+
+### 4. Third-party apps cannot be launched as pickers — ✅ RESOLVED 2026-08-23 (Phase 5B)
+
+The brief asks to offer Google Photos / Files / Gallery as selectable *sources*. There is **no stable
+contract** for launching a named third-party app as a picker — apps do not all export a picker activity.
+
+**Implemented instead:** `FileSourceResolver.kt` enumerates `ACTION_GET_CONTENT` handlers with
+`queryIntentActivities` and launches the *resolved component*, plus the Android Photo Picker
+(`ACTION_PICK_IMAGES`) for image/video and SAF `ACTION_OPEN_DOCUMENT` as the always-present option.
+This delivers the intended UX; it is not the literal mechanism the brief described.
+
+`<queries>` entries were added to `AndroidManifest.xml` and confirmed present in the merged manifest.
+Without them, Android 11+ package visibility returns an **incomplete** list — a silent failure, not
+an error. Do not remove them.
+
+### 5. Permission-free picker property — ✅ PRESERVED 2026-08-23 (Phase 5B)
+
+File input goes through picker intents only (Photo Picker, SAF, resolved `GET_CONTENT`), which need
+**no runtime permission on any API level**. That is the reason the app is portable across API 24–36,
+and the 5B chooser preserves it.
+
+`image_picker` remains declared in `pubspec.yaml` but **unused** — the Photo Picker is reached
+directly through the platform channel, so the dependency is still dead weight. `file_picker` is
+still used as the non-Android fallback and when the channel is unavailable.
+
+### 6. Split PDF outputs a ZIP, not a PDF
+
+`Documents/Convertix/Split PDF/` will contain a `PK` archive, which Gallery will correctly not index.
+Undecided whether to save the ZIP as-is or extract it into a per-job folder of PDFs. Affects what
+Open / Show in Folder / Share act on.
+
+### 7. Progress is only partly measurable
+
+| Path | Real percentage? |
+|---|---|
+| Video / audio via FFmpeg | **Yes** — `time=` against source duration |
+| Image Converter | **No** — pure-Dart `package:image`, no progress hooks |
+| 5 document tools | **No** — Gradio SSE emits `heartbeat\|generating\|error\|complete`, no percentage |
+
+Per the brief, the two "No" rows get stage-based progress, not a fabricated bar. Making document
+progress real would require emitting `gr.Progress()` from `backend/app.py` — a backend change, optional.
+
+### 8. `permission_service.dart` decision is now forced
+
+Already flagged below: dead code, and `_getAndroidVersion()` parses the Android *release* number (7–16)
+instead of the API level (24–36), so its `>= 33` branch is unreachable. Phase 5A touches storage
+permissions directly, so this must be fixed with a real `sdkInt` or deleted.
 
 ---
 
@@ -124,6 +250,48 @@ If your app was published without enrolling in Play App Signing (possible only f
 
 ---
 
+## Backend Facts (read before touching backend_service.dart)
+
+### There are two Spaces — only one is live for the app
+
+| Space | Gradio | SDK | Hardware | Used by app |
+|---|---|---|---|---|
+| `pandeypratham/libreoffice-converter` | **4.36.0** | docker | cpu-basic | **Yes** (`.env`) |
+| `darkframeshzn/convertix-backend` | 6.24.0 | gradio | zero-a10g | No |
+
+`.env` → `BACKEND_BASE_URL=https://pandeypratham-libreoffice-converter.hf.space`.
+
+`AGENT_RULES.md` §6 previously named the `darkframeshzn` Space. Trusting that doc instead of reading
+`.env` caused a full misdiagnosis: the wrong Space was probed, a working client was "fixed" into a
+broken one, and the APK regressed. **Read `.env`'s `BACKEND_BASE_URL` to learn the live backend.**
+
+The `darkframeshzn` Space is additionally unusable as-is: every handler in its deployed `app.py`
+carries `@spaces.GPU`, so pure-CPU LibreOffice/PyMuPDF work is routed through the ZeroGPU scheduler
+and its quota is exhausted (`{"title":"ZeroGPU quota exceeded"}`). If it is ever adopted, strip those
+decorators and the `spaces` dependency, and move it to cpu-basic first.
+
+### Route prefix is auto-detected
+
+Gradio 4 serves the REST API at the root; Gradio 5+ moves it under `/gradio_api`. `_prefix()` probes
+`GET /gradio_api/info` once per process and caches the result, so the client works against either
+Space and survives a future Space upgrade.
+
+### Download URL must be built from `path`, not `url`
+
+Gradio 4.36 returns a malformed `url` for jobs submitted via `/call/<api_name>` — it mis-trims the
+route (`/c/file=` for `convert`, `/cal/file=` for `merge_pdf`, `/call/i/file=` for `image_to_pdf`;
+the corruption length tracks the api_name length) and those 404. Verified live: `url` → HTTP 404,
+`<prefix>/file=<path>` → HTTP 200 with valid `%PDF`. The old `/queue/join` protocol did not trigger
+this, which is why preferring `url` worked before the migration.
+
+### Version pins mirror the deployed Space
+
+`backend/requirements.txt` is the single source of truth (gradio 4.36.0 + the jinja2/starlette/
+fastapi/pydantic pins the live image uses); `backend/Dockerfile` installs from it rather than
+duplicating pins. Verified to resolve cleanly on Python 3.10/3.12 (36 packages, no conflicts).
+
+---
+
 ## ⚠️ API Level Deadline
 
 **Google Play Policy**
@@ -167,13 +335,40 @@ If your app was published without enrolling in Play App Signing (possible only f
 | LOG/HDR compression | ✅ v1 requirement |
 | FFmpeg package | ✅ `ffmpeg_kit_flutter_new` (community fork, 199 likes, 160/160 pub points) |
 | Gradle/AGP | ✅ Gradle 8.5 + AGP 8.3.2 (bypasses Windows file-lock bug) |
+| Output storage (Phase 5A) | ✅ Kotlin platform channel → MediaStore; no new package |
+| Output folders (Phase 5A) | ✅ `DCIM/Images (Convertix)/`, `Movies/Videos (Convertix)/`, `Music/Audio (Convertix)/`, `Documents/Convertix/<Tool>/` |
 
 ---
 
 ## What Needs to Happen Next
 
+**Phase 5 (in progress) — Product Polish, Shared UX & Output Structure**
+
+- [x] **5A** — Output-location service: MediaStore-backed public folders per tool category
+- [x] **5B** — Shared file-source selection (`<queries>` + `queryIntentActivities`, Photo Picker)
+- [ ] **5C** — "Don't ask again" preference per media category + settings screen & `/settings` route
+      — seam is ready: `FilePickerButton._resolveSource()` is the single interception point
+- [ ] **5D** — Unified post-conversion actions (Open / Show in Folder / Share), consolidating the two success UIs
+- [ ] **5E** — Honest progress + ETA model (real % where measurable, stage-based where not)
+- [ ] **5F** — Integrate all 10 tools, `flutter analyze` after each — **until this lands, tools still
+      write to app-private storage; 5A's service is built but unused**
+- [ ] **5G** — API 24/29/33/36 compatibility matrix + full regression pass, including on-device
+      verification of 5A (deferred from 5A — only an Android 16 device is available)
+- [ ] Answer open questions 6 and 8 above (Split PDF ZIP handling; `permission_service.dart`)
+
+**Carried over**
+
 - [x] **Phase 2A** — Deploy Gradio backend to Hugging Face Space
 - [x] **Phase 2B** — Implement 5 document tool screens with backend integration
 - [x] **Phase 2B** — Verify all 5 document tools convert successfully on device (RMX3998)
+- [x] Migrate client from `fn_index` to `api_name` calls, with auto-detected route prefix
+- [x] Align `backend/` version pins to the deployed Space (Gradio 4.36.0)
+- [x] Confirm Android 24–36 compatibility (minSdk merge, plugin floors, backend TLS chain)
+- [ ] Decide fate of `core/services/permission_service.dart` — dead code, and its API-level
+      detection is broken (see CLAUDE.md → Android version compatibility). **Now forced by Phase 5A.**
+- [x] Replace Google test AdMob banner ID with production ID — **Android done**
+      (`ca-app-pub-2093403233028868/1705631815`)
+- [ ] Create an **iOS** banner ad unit in AdMob — `iosBannerAdUnitId` is still a Google test ID.
+      The Android unit must not be reused; ad unit IDs are per-platform.
 - [ ] Check Play App Signing enrollment in Play Console
 - [ ] If enrolled: generate new upload key and submit reset request

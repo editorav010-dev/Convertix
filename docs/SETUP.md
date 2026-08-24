@@ -148,25 +148,50 @@ flutter run -d ios
 
 ## 8. Backend Setup (Document Tools)
 
-The document tools backend is a separate FastAPI app hosted on Hugging Face Spaces.
+The document tools backend is a separate **Gradio** app hosted on Hugging Face Spaces.
+
+**Live Space:** `pandeypratham/libreoffice-converter` → `https://pandeypratham-libreoffice-converter.hf.space`
+Space card: `sdk: docker`, `app_port: 7860`, hardware `cpu-basic`, Gradio **4.36.0**.
+
+> A second Space exists — `darkframeshzn/convertix-backend` (Gradio 6.24.0, `sdk: gradio`,
+> ZeroGPU). It is **not** used by the app. Its handlers all carry `@spaces.GPU`, so its CPU-only
+> workload is gated behind an exhausted ZeroGPU quota. Confirm which Space `.env` points at before
+> debugging anything backend-related.
 
 **Deploy to Hugging Face:**
-1. Create a new Space → Docker type → name it `convertix-backend`
-2. Push the `backend/` directory to the Space repo
-3. Note the Space URL: `https://[username]-convertix-backend.hf.space`
+1. Create a Space → **Docker** SDK → name it `libreoffice-converter`
+2. Push `Dockerfile`, `app.py`, and `requirements.txt` from `backend/` to the Space repo
+3. Note the Space URL: `https://[username]-libreoffice-converter.hf.space`
 4. Update `.env` with this URL
-5. Set up cron-job.org to ping `GET /health` every 15 minutes (free tier sleep prevention)
+5. Set up cron-job.org to ping the Space root every ~10 minutes (free tier sleep prevention)
 
-**Backend endpoints:**
+**Run locally:**
+```bash
+cd backend
+pip install -r requirements.txt   # gradio 4.36.0
+python app.py                     # serves on http://0.0.0.0:7860
+```
 
-| Method | Path | Description |
+`backend/requirements.txt` is the **single source of version truth** — `backend/Dockerfile` installs
+from it instead of duplicating pins. Change versions there and nowhere else.
+
+**Endpoints** — Gradio `api_name`s, not REST paths. All calls go through the Gradio protocol
+(see ARCHITECTURE.md → Document Tool Execution Flow):
+
+| Gradio `api_name` | Handler | Description |
 |---|---|---|
-| GET | `/health` | Health check → `{"status": "ok"}` |
-| POST | `/image-to-pdf` | Image(s) → PDF |
-| POST | `/document-convert` | Document format conversion |
-| POST | `/greyscale-pdf` | Color PDF → grayscale |
-| POST | `/merge-pdf` | Multiple PDFs → single PDF |
-| POST | `/split-pdf` | Split PDF by page range or page numbers |
+| `health` | `health_check` | Liveness → `"ok"` |
+| `convert` | `convert_document` | Document format conversion (LibreOffice) |
+| `split` | `split_pdf` | Split a PDF → ZIP of parts |
+| `image_to_pdf` | `image_to_pdf` | Image(s) → single PDF |
+| `greyscale_pdf` | `greyscale_pdf` | Colour PDF → greyscale |
+| `merge_pdf` | `merge_pdf` | Multiple PDFs → single PDF |
+
+Inspect the live contract (names + parameter order) with:
+```bash
+# Gradio 4 serves this at the root; Gradio 5+ under /gradio_api
+curl -s https://pandeypratham-libreoffice-converter.hf.space/info
+```
 
 ---
 
@@ -176,8 +201,8 @@ The document tools backend is a separate FastAPI app hosted on Hugging Face Spac
 dependencies:
   flutter_riverpod: ^2.6.1
   go_router: ^14.6.3
-  ffmpeg_kit_flutter_full_gpl: ^6.0.3
-  google_mobile_ads: ^5.x          # AdMob
+  ffmpeg_kit_flutter_new: ^4.6.0    # NOT _full_gpl — original retired Apr 2025
+  google_mobile_ads: ^5.3.0         # AdMob
   dio: ^5.7.0
   image_picker: ^1.1.2
   file_picker: ^8.1.7
@@ -186,15 +211,21 @@ dependencies:
   open_file: ^3.5.8
   share_plus: ^10.1.4
   image: ^4.3.0
-  lucide_icons: ^0.257.0
+  lucide_icons_flutter: ^3.1.15
   flutter_dotenv: ^5.2.1
-  shared_preferences: ^2.3.x
+  shared_preferences: ^2.3.2
+  cupertino_icons: ^1.0.8
+  uuid: ^4.5.1
+  path: ^1.9.0
 
 dev_dependencies:
-  flutter_lints: ^4.x
+  flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
 ```
+
+> This table mirrors `pubspec.yaml`. Keep them in sync — a stale list here has previously led to
+> agents "restoring" the retired `ffmpeg_kit_flutter_full_gpl` package.
 
 ---
 

@@ -118,7 +118,9 @@ If you feel you need a new doc file, ask first.
 - AdMob: `google_mobile_ads` — never remove, never skip initialization
 - AdMob init guard: always wrap in `if (Platform.isAndroid || Platform.isIOS)`
 - Backend communication: Gradio REST API via SSE (not standard multipart FastAPI)
-- Backend URL: defined in `lib/shared/constants/api_constants.dart` as `backendBaseUrl`
+- Backend calls are keyed by Gradio `api_name` in `_apiNames`, never by numeric `fn_index`
+- Backend URL: read from `.env` as `BACKEND_BASE_URL` (loaded by `flutter_dotenv` in `main.dart`);
+  timeouts and size limits live in `lib/shared/constants/api_constants.dart`
 
 ---
 
@@ -216,14 +218,24 @@ Never mix these. Never route a media tool through the backend.
 Never route a document tool through FFmpegKit.
 
 ### Backend
-- URL: `https://darkframeshzn-convertix-backend.hf.space`
-- Type: Gradio on ZeroGPU
-- Protocol: `/gradio_api/upload` → `/gradio_api/queue/join` → SSE stream
-- Keep-alive: cron-job.org pings `/health` every 10 minutes
+- **Read `.env`'s `BACKEND_BASE_URL` to learn the live backend — do not trust this doc's URL.**
+  Trusting a stale URL here once caused the wrong Space to be probed and a working client to be
+  "fixed" into a broken one.
+- Live (as of last check): `https://pandeypratham-libreoffice-converter.hf.space`
+  — `pandeypratham/libreoffice-converter`, Gradio **4.36.0**, `sdk: docker`, cpu-basic
+- A second Space exists (`darkframeshzn/convertix-backend`, Gradio 6.24.0, ZeroGPU) and is **not**
+  used by the app; its handlers carry `@spaces.GPU` and its quota is exhausted
+- Protocol: `<prefix>/upload` → `POST <prefix>/call/<api_name>` → SSE
+  `GET <prefix>/call/<api_name>/<event_id>` → `GET <prefix>/file=<path>`
+- `<prefix>` is auto-detected by `_prefix()`: empty on Gradio 4, `/gradio_api` on Gradio 5+
+- Download URLs must be built from the FileData `path`, never its `url` (Gradio 4.36 returns a
+  malformed `url` for `/call/` jobs — see STATE.md → Backend Facts)
+- Endpoint contract: `GET <prefix>/info` lists live `api_name`s and parameter order
+- Keep-alive: cron-job.org pings the Space every 10 minutes
 
 ### Active Blockers (check STATE.md for latest)
 - Play Store upload key reset: pending Google approval
-- Document tools: errors being investigated
+- Document tools: ✅ working — all 5 verified by API probe and manually on-device
 
 ### Key Decisions Already Made
 - AdMob: kept (ad-supported model)

@@ -202,6 +202,61 @@ Each profile has a distinct, tested filter chain defined in `lib/features/video_
 
 ---
 
+## File Selection (Phase 5B)
+
+Choosing an input never shows a wall of unrelated apps. Convertix offers only sources that are
+installed and can actually supply the required file type.
+
+| Tool(s) | Sources offered |
+|---|---|
+| Image Converter | Photos (Android Photo Picker), Files, plus any installed Gallery / Photos app |
+| Video Converter, Video Compression, Video to Audio | Photos, Files, plus any installed video-capable app |
+| Audio Converter | Files and file-manager apps — not Photos |
+| All 5 document tools, including Image to PDF | Files and file-manager apps — not Photos |
+
+Guaranteed behaviour:
+
+- The list reflects what is actually installed — an app that is absent is never shown, and an app
+  that cannot supply the required type is never offered
+- When only one source exists, no chooser appears — the tool opens it directly
+- Backing out of a picker cancels quietly; it is not reported as an error
+- Selecting a file needs **no storage permission** on any supported Android version
+- If a chosen app has been uninstalled since the list was built, the user is told and can pick another
+
+Remembering a preferred source ("Don't ask again") is Phase 5C.
+
+---
+
+## Output Locations (Phase 5A)
+
+Every tool saves its result to a predictable public folder, visible in Gallery / Photos / Files
+without the user moving anything.
+
+| Tool | Output folder |
+|---|---|
+| Image Converter | `DCIM/Images (Convertix)/` |
+| Video Converter, Video Compression | `Movies/Videos (Convertix)/` |
+| Audio Converter, Video to Audio | `Music/Audio (Convertix)/` |
+| Image to PDF | `Documents/Convertix/Image to PDF/` |
+| Document Converter | `Documents/Convertix/Document Converter/` |
+| Greyscale PDF | `Documents/Convertix/Greyscale PDF/` |
+| Merge PDF | `Documents/Convertix/Merge PDF/` |
+| Split PDF | `Documents/Convertix/Split PDF/` |
+
+Guaranteed behaviour:
+
+- Filenames follow `[original_name]_[timestamp].[ext]` — predictable, never random
+- The folder is created automatically, including after the user deletes it
+- An existing file is never overwritten — ` (1)`, ` (2)`… is appended
+- A failed save leaves the source intact; the user's output is never silently lost
+- Media indexing is asynchronous, so a new file may take a moment to appear in Gallery
+
+Implementation is `OutputLocationService` over a MediaStore platform channel — see
+`ARCHITECTURE.md` §Output File Naming & Placement. Split PDF produces a `.zip`, which Gallery
+correctly does not index.
+
+---
+
 ## Cross-Cutting Constraints
 
 - Media tools: zero network activity, all processing local
@@ -209,7 +264,8 @@ Each profile has a distinct, tested filter chain defined in `lib/features/video_
 - No user accounts or sign-in
 - No file contents stored beyond the active job
 - Analytics: opt-in only, no PII, no file names or URLs collected
-- No advertising
+- Outputs are written to public media collections, never to app-private storage
+- Advertising: AdMob banner ads on tool screens — see §Monetisation (AdMob)
 
 ---
 
