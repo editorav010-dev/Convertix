@@ -11,6 +11,17 @@ import 'package:open_file/open_file.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 
+import '../video_converter/video_converter_provider.dart';
+import '../video_compression/video_compression_provider.dart';
+import '../audio_converter/audio_converter_provider.dart';
+import '../video_to_audio/video_to_audio_provider.dart';
+import '../image_converter/image_converter_provider.dart';
+import '../image_to_pdf/image_to_pdf_provider.dart';
+import '../document_convert/document_convert_provider.dart';
+import '../greyscale_pdf/greyscale_pdf_provider.dart';
+import '../merge_pdf/merge_pdf_provider.dart';
+import '../split_pdf/split_pdf_provider.dart';
+
 class HistoryScreen extends ConsumerWidget {
   const HistoryScreen({super.key});
 
@@ -215,12 +226,23 @@ class _HistoryCard extends ConsumerWidget {
                 ),
               ),
               if (isActive)
-                const Padding(
-                  padding: EdgeInsets.only(left: 16, top: 4),
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: const Icon(LucideIcons.x, size: 20),
+                        onPressed: () => _cancelTask(ref),
+                        tooltip: 'Cancel',
+                      ),
+                    ],
                   ),
                 )
               else
@@ -394,10 +416,12 @@ class _HistoryCard extends ConsumerWidget {
         }
         break;
       case 'share':
-        final pathOrUri = entry.contentUri ?? entry.displayLocation;
-        if (pathOrUri != null) {
+        if (entry.contentUri != null) {
+          await outputLocationService.shareOutput(entry.contentUri!);
+        } else if (entry.displayLocation != null) {
+          // Fallback if not published to MediaStore
           await Share.shareXFiles(
-            [XFile(pathOrUri)],
+            [XFile(entry.displayLocation!)],
             text: 'Converted with Convertix',
           );
         }
@@ -455,5 +479,40 @@ class _HistoryCard extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  void _cancelTask(WidgetRef ref) {
+    switch (entry.toolName) {
+      case 'Video Converter':
+        ref.read(videoConverterProvider.notifier).cancel();
+        break;
+      case 'Video Compression':
+        ref.read(videoCompressionProvider.notifier).cancel();
+        break;
+      case 'Audio Converter':
+        ref.read(audioConverterProvider.notifier).cancel();
+        break;
+      case 'Video to Audio':
+        ref.read(videoToAudioProvider.notifier).cancel();
+        break;
+      case 'Image Converter':
+        ref.read(imageConverterProvider.notifier).cancel();
+        break;
+      case 'Image to PDF':
+        ref.read(imageToPdfProvider.notifier).cancel();
+        break;
+      case 'Document Converter':
+        ref.read(documentConvertProvider.notifier).cancel();
+        break;
+      case 'Greyscale PDF':
+        ref.read(greyscalePdfProvider.notifier).cancel();
+        break;
+      case 'Merge PDF':
+        ref.read(mergePdfProvider.notifier).cancel();
+        break;
+      case 'Split PDF':
+        ref.read(splitPdfProvider.notifier).cancel();
+        break;
+    }
   }
 }

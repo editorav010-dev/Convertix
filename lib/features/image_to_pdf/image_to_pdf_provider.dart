@@ -25,7 +25,7 @@ class ImageToPdfNotifier extends AsyncNotifier<ConversionResult?> {
       toolName: 'Image to PDF',
       task: () async {
         final String outputDir = await fileService.getOutputDir();
-        final String outputName = fileService.buildOutputPath('images', 'pdf');
+        final String outputName = fileService.buildOutputPath(p.basename(inputPaths.first), 'pdf');
         final String outputPath = p.join(outputDir, outputName);
 
         final result = await backendService.uploadAndConvert(

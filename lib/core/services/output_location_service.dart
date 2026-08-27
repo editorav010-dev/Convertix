@@ -238,19 +238,27 @@ class OutputLocationService {
   }
 
   Future<bool> renameOutput(String uri, String newName) async {
-    if (!Platform.isAndroid) return false;
     try {
-      final success = await _channel.invokeMethod<bool>(
-        'renameOutput',
-        <String, String>{
-          'uri': uri,
-          'newName': newName,
-        },
-      );
+      final success = await _channel.invokeMethod<bool>('renameOutput', {
+        'uri': uri,
+        'newName': newName,
+      });
       return success ?? false;
-    } on PlatformException {
+    } catch (e) {
+      debugPrint('Failed to rename output: $e');
       return false;
-    } on MissingPluginException {
+    }
+  }
+
+  /// Share a file using its MediaStore URI via the native Android share sheet.
+  Future<bool> shareOutput(String uri) async {
+    try {
+      final success = await _channel.invokeMethod<bool>('shareOutput', {
+        'uri': uri,
+      });
+      return success ?? false;
+    } catch (e) {
+      debugPrint('Failed to share output: $e');
       return false;
     }
   }

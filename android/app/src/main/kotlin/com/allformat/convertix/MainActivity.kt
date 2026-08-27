@@ -69,6 +69,7 @@ class MainActivity : FlutterActivity() {
                 "showInFolder" -> handleShowInFolder(call, result)
                 "deleteOutputs" -> handleDeleteOutputs(call, result)
                 "renameOutput" -> handleRenameOutput(call, result)
+                "shareOutput" -> handleShareOutput(call, result)
                 else -> result.notImplemented()
             }
         }
@@ -186,6 +187,27 @@ class MainActivity : FlutterActivity() {
             return
         }
         result.success(MediaStoreWriter(applicationContext).rename(uri, newName))
+    }
+
+    private fun handleShareOutput(call: MethodCall, result: MethodChannel.Result) {
+        val uriString = call.argument<String>("uri")
+        if (uriString == null) {
+            result.error("bad_arguments", "shareOutput requires uri", null)
+            return
+        }
+
+        try {
+            val uri = Uri.parse(uriString)
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = contentResolver.getType(uri) ?: "*/*"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(intent, "Share with"))
+            result.success(true)
+        } catch (e: Exception) {
+            result.error("share_failed", e.message, null)
+        }
     }
 
     private fun getDisplayName(uri: Uri): String? {

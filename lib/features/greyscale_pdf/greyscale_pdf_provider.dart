@@ -25,7 +25,7 @@ class GreyscalePdfNotifier extends AsyncNotifier<ConversionResult?> {
       toolName: 'Greyscale PDF',
       task: () async {
         final String outputDir = await fileService.getOutputDir();
-        final String outputName = fileService.buildOutputPath('greyscale', 'pdf');
+        final String outputName = fileService.buildOutputPath(p.basename(inputPath), 'pdf');
         final String outputPath = p.join(outputDir, outputName);
 
         final result = await backendService.uploadAndConvert(

@@ -26,7 +26,7 @@ class DocumentConvertNotifier extends AsyncNotifier<ConversionResult?> {
       toolName: 'Document Converter',
       task: () async {
         final String outputDir = await fileService.getOutputDir();
-        final String outputName = fileService.buildOutputPath('documents', targetFormat);
+        final String outputName = fileService.buildOutputPath(p.basename(inputPath), targetFormat);
         final String outputPath = p.join(outputDir, outputName);
 
         final result = await backendService.uploadAndConvert(

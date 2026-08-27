@@ -28,7 +28,7 @@ class SplitPdfNotifier extends AsyncNotifier<ConversionResult?> {
       toolName: 'Split PDF',
       task: () async {
         final String outputDir = await fileService.getOutputDir();
-        final String outputName = fileService.buildOutputPath('split', 'zip');
+        final String outputName = fileService.buildOutputPath(p.basename(inputPath), 'zip');
         final String outputPath = p.join(outputDir, outputName);
 
         final result = await backendService.uploadAndConvert(

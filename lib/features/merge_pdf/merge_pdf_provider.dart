@@ -25,7 +25,7 @@ class MergePdfNotifier extends AsyncNotifier<ConversionResult?> {
       toolName: 'Merge PDF',
       task: () async {
         final String outputDir = await fileService.getOutputDir();
-        final String outputName = fileService.buildOutputPath('merged', 'pdf');
+        final String outputName = fileService.buildOutputPath(p.basename(inputPaths.first), 'pdf');
         final String outputPath = p.join(outputDir, outputName);
 
         final result = await backendService.uploadAndConvert(
