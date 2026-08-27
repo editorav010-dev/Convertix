@@ -24,16 +24,20 @@ dependencies:
   flutter_dotenv: ^5.2.1
   shared_preferences: ^2.3.2
   cupertino_icons: ^1.0.8
-  uuid: ^4.5.1
+  uuid: ^4.6.0
   path: ^1.9.0
   # Split PDF only: the backend returns a ZIP of per-page PDFs, which is decoded
   # on-device so the user never handles the archive. See STATE.md open question 6.
   archive: ^3.6.1
+  hive_flutter: ^1.1.0
+  hive: ^2.2.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.13
 
 flutter:
   uses-material-design: true

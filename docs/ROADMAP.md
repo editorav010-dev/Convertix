@@ -276,17 +276,17 @@ custom Flutter file picker with native Android intents, add accurate progress/ET
 first-launch permissions onboarding screen.
 **Status:** 🔴 Not started — **scheduled before Phase 3** (iOS/Store)
 
-### Phase 6A — Output File Naming Fix 🔴 Not Started
+### Phase 6A — Output File Naming Fix ✅ COMPLETED
 
 **Goal:** Fix the current bug where output files are saved with random/timestamped names.
 
-- [ ] Update `file_service.dart` `buildOutputPath()` to use `[original]_convertix.[ext]` pattern
-- [ ] Remove all timestamp-based naming logic
-- [ ] Duplicate handling: append `(1)`, `(2)`… before the extension
-- [ ] Examples: `interview.mp4` → `interview_convertix.mp3`,
+- [x] Update `file_service.dart` `buildOutputPath()` to use `[original]_convertix.[ext]` pattern
+- [x] Remove all timestamp-based naming logic
+- [x] Duplicate handling: append `(1)`, `(2)`… before the extension
+- [x] Examples: `interview.mp4` → `interview_convertix.mp3`,
       `report.docx` → `report_convertix.pdf`
-- [ ] `flutter analyze` clean
-- [ ] On-device verification with all 10 tools
+- [x] `flutter analyze` clean
+- [x] On-device verification with all 10 tools
 
 ### Phase 6B — Android System Intent Resolver + Per-Tool Memory ⏸️ ON HOLD
 
@@ -317,22 +317,22 @@ first-launch permissions onboarding screen.
 - [x] Tool screens push on top of the shell
 - [x] `flutter analyze` clean
 
-### Phase 6D — Conversion History Database 🔴 Not Started
+### Phase 6D — Conversion History Database ✅ COMPLETED
 
 **Goal:** Local persistence for conversion history using Hive.
 
-- [ ] Add `hive_flutter` to `pubspec.yaml` (approved new dependency)
-- [ ] Create `HistoryEntry` Hive model with TypeAdapter
-- [ ] Create `history_service.dart` (CRUD operations)
-- [ ] Create `history_screen.dart` with Active Tasks and History sections
-- [ ] History cards: filename, tool name, file size, timestamp, output format
-- [ ] Card actions: Open, Show in Folder, Share, Rename, Delete
-- [ ] Rename: MediaStore `ContentResolver` update (new Kotlin channel method)
-- [ ] Delete: MediaStore delete with `createDeleteRequest` (API 30+)
-- [ ] Handle externally moved/deleted files ("File no longer exists" state)
-- [ ] Group by: Today, Yesterday, Earlier
-- [ ] Clear All History button
-- [ ] `flutter analyze` clean
+- [x] Add `hive_flutter` to `pubspec.yaml` (approved new dependency)
+- [x] Create `HistoryEntry` Hive model with TypeAdapter
+- [x] Create `history_service.dart` (CRUD operations)
+- [x] Create `history_screen.dart` with Active Tasks and History sections
+- [x] History cards: filename, tool name, file size, timestamp, output format
+- [x] Card actions: Open, Show in Folder, Share, Rename, Delete
+- [x] Rename: MediaStore `ContentResolver` update (new Kotlin channel method)
+- [x] Delete: MediaStore delete with `createDeleteRequest` (API 30+)
+- [x] Handle externally moved/deleted files ("File no longer exists" state)
+- [x] Group by: Today, Yesterday, Earlier
+- [x] Clear All History button
+- [x] `flutter analyze` clean
 
 ### Phase 6E — Accurate Progress & ETA 🔴 Not Started
 

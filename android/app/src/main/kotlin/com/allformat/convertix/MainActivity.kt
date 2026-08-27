@@ -68,6 +68,7 @@ class MainActivity : FlutterActivity() {
                 "saveToCollection" -> handleSaveToCollection(call, result)
                 "showInFolder" -> handleShowInFolder(call, result)
                 "deleteOutputs" -> handleDeleteOutputs(call, result)
+                "renameOutput" -> handleRenameOutput(call, result)
                 else -> result.notImplemented()
             }
         }
@@ -175,6 +176,16 @@ class MainActivity : FlutterActivity() {
             return
         }
         result.success(MediaStoreWriter(applicationContext).delete(uris))
+    }
+
+    private fun handleRenameOutput(call: MethodCall, result: MethodChannel.Result) {
+        val uri = call.argument<String>("uri")
+        val newName = call.argument<String>("newName")
+        if (uri == null || newName == null) {
+            result.error("bad_arguments", "renameOutput requires uri and newName", null)
+            return
+        }
+        result.success(MediaStoreWriter(applicationContext).rename(uri, newName))
     }
 
     private fun getDisplayName(uri: Uri): String? {

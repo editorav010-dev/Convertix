@@ -237,6 +237,29 @@ class OutputLocationService {
     }
   }
 
+  Future<bool> renameOutput(String uri, String newName) async {
+    if (!Platform.isAndroid) return false;
+    try {
+      final success = await _channel.invokeMethod<bool>(
+        'renameOutput',
+        <String, String>{
+          'uri': uri,
+          'newName': newName,
+        },
+      );
+      return success ?? false;
+    } on PlatformException {
+      return false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
+
+  Future<bool> deleteOutput(String uri) async {
+    final removed = await discard([uri]);
+    return removed > 0;
+  }
+
 
   /// Opens the public folder where the output was saved using native file explorer.
   Future<void> showInFolder(String relativeDir) async {
@@ -288,10 +311,6 @@ class OutputLocationService {
     while (await candidate.exists()) {
       candidate = File(path.join(dir, '$stem ($counter)$ext'));
       counter++;
-      if (counter > 999) {
-        final stamp = DateTime.now().millisecondsSinceEpoch;
-        return File(path.join(dir, '$stem-$stamp$ext'));
-      }
     }
     return candidate;
   }

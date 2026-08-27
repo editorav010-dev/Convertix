@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/conversion_result.dart';
 import '../../../core/services/ffmpeg_service.dart';
 import '../../../core/services/file_service.dart';
+import '../../../core/services/history_service.dart';
 import '../../../core/services/output_location_service.dart';
 import '../media_tools/media_conversion_utils.dart';
 import 'log_profiles.dart';
@@ -65,7 +66,12 @@ class VideoCompressionNotifier extends AsyncNotifier<ConversionResult?> {
     void Function(double, [String?])? onProgress,
   }) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() => _run(inputFile, config, onProgress));
+    final historyService = ref.read(historyServiceProvider);
+    state = await AsyncValue.guard(() => historyService.runTaskWithHistory(
+      inputFilename: inputFile.path.split(RegExp(r'[\\/]')).last,
+      toolName: 'Video Compression',
+      task: () => _run(inputFile, config, onProgress),
+    ));
   }
 
   void cancel() {

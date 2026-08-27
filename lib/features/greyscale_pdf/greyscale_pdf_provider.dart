@@ -3,6 +3,7 @@ import 'package:path/path.dart' as p;
 import '../../../core/models/conversion_result.dart';
 import '../../../core/services/backend_service.dart';
 import '../../../core/services/file_service.dart';
+import '../../../core/services/history_service.dart';
 import '../../../core/services/output_location_service.dart';
 
 final greyscalePdfProvider = AsyncNotifierProvider<GreyscalePdfNotifier, ConversionResult?>(() {
@@ -18,29 +19,32 @@ class GreyscalePdfNotifier extends AsyncNotifier<ConversionResult?> {
     void Function(double progress, [String? stageLabel])? onProgress,
   }) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      // buildOutputPath returns a bare filename; it must be joined with the
-      // output directory or the write resolves against a read-only CWD.
-      final String outputDir = await fileService.getOutputDir();
-      final String outputName = fileService.buildOutputPath('greyscale', 'pdf');
-      final String outputPath = p.join(outputDir, outputName);
+    final historyService = ref.read(historyServiceProvider);
+    state = await AsyncValue.guard(() => historyService.runTaskWithHistory(
+      inputFilename: inputPath.split(RegExp(r'[\\/]')).last,
+      toolName: 'Greyscale PDF',
+      task: () async {
+        final String outputDir = await fileService.getOutputDir();
+        final String outputName = fileService.buildOutputPath('greyscale', 'pdf');
+        final String outputPath = p.join(outputDir, outputName);
 
-      final result = await backendService.uploadAndConvert(
-        tool: ConvertixTool.greyscalePdf,
-        endpoint: '/greyscale-pdf',
-        fields: {},
-        filePaths: [inputPath],
-        outputPath: outputPath,
-        outputFilename: outputName,
-        onProgress: onProgress,
-      );
-      
-      if (!result.success) {
-        throw Exception(result.errorMessage ?? 'Conversion failed');
+        final result = await backendService.uploadAndConvert(
+          tool: ConvertixTool.greyscalePdf,
+          endpoint: '/greyscale-pdf',
+          fields: {},
+          filePaths: [inputPath],
+          outputPath: outputPath,
+          outputFilename: outputName,
+          onProgress: onProgress,
+        );
+        
+        if (!result.success) {
+          throw Exception(result.errorMessage ?? 'Conversion failed');
+        }
+        
+        return result;
       }
-      
-      return result;
-    });
+    ));
   }
 
   void cancel() {

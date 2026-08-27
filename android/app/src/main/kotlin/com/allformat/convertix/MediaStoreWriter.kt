@@ -155,7 +155,6 @@ class MediaStoreWriter(private val context: Context) {
         while (mediaStoreNameExists(collectionUri, relativeDir, candidate)) {
             candidate = "$stem ($counter)$suffix"
             counter++
-            if (counter > 999) return "$stem-${System.currentTimeMillis()}$suffix"
         }
         return candidate
     }
@@ -215,9 +214,6 @@ class MediaStoreWriter(private val context: Context) {
         while (candidate.exists()) {
             candidate = File(dir, "$stem ($counter)$suffix")
             counter++
-            if (counter > 999) {
-                return File(dir, "$stem-${System.currentTimeMillis()}$suffix")
-            }
         }
         return candidate
     }
@@ -242,15 +238,27 @@ class MediaStoreWriter(private val context: Context) {
         return result
     }
 
-    // --- rollback -------------------------------------------------------------------------
+    // --- rename & rollback -------------------------------------------------------------------------
+
+    fun rename(uriString: String, newName: String): Boolean {
+        return runCatching {
+            val uri = Uri.parse(uriString)
+            if (uri.scheme == "file") {
+                val file = File(uri.path ?: return@runCatching false)
+                val newFile = File(file.parentFile, newName)
+                file.renameTo(newFile)
+            } else {
+                val values = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, newName)
+                }
+                context.contentResolver.update(uri, values, null, null) > 0
+            }
+        }.getOrDefault(false)
+    }
 
     /**
      * Best-effort removal of outputs this app previously wrote, used to roll back a
-     * multi-file publish that failed part-way through (Split PDF).
-     *
-     * Individual failures are swallowed deliberately: a rollback runs while an error is
-     * already being reported, and must never replace it with a second one. Returns the
-     * number of entries actually removed.
+     * multi-file publish that failed part-way through (Split PDF), or user deletes.
      */
     fun delete(uris: List<String>): Int {
         var removed = 0
