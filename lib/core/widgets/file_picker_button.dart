@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../shared/constants/format_constants.dart';
-import '../services/file_source_service.dart';
+import '../services/file_picker_service.dart';
 
 /// File input button for all 10 tools.
-///
-/// Triggers the Android System Intent Resolver which determines available apps, remembers user choice
-/// per tool, and falls back to the system chooser if a choice wasn't remembered.
 class FilePickerButton extends StatefulWidget {
   final String toolName;
   final String label;
@@ -33,12 +30,6 @@ class _FilePickerButtonState extends State<FilePickerButton> {
   List<String>? _selectedFileNames;
   bool _busy = false;
 
-  bool _isExtensionAllowed(String fileName, String toolName) {
-    final ext = fileName.split('.').last.toLowerCase();
-    final allowed = toolAllowedExtensions[toolName] ?? [];
-    return allowed.contains(ext);
-  }
-
   Future<void> _pickFile() async {
     if (_busy) return;
     setState(() => _busy = true);
@@ -47,31 +38,38 @@ class _FilePickerButtonState extends State<FilePickerButton> {
       final allowedExtensions = toolAllowedExtensions[widget.toolName] ?? [];
       final mimeType = toolMimeTypes[widget.toolName] ?? '*/*';
 
-      final paths = await fileSourceService.pick(
-        toolName: widget.toolName,
+      final picked = await FilePickerService.pickFiles(
         mimeType: mimeType,
-        allowedExtensions: allowedExtensions,
         allowMultiple: widget.allowMultiple,
       );
 
-      // Empty means the user cancelled inside the picker — not an error, no message.
-      if (paths.isEmpty) return;
+      // Null means the user cancelled inside the picker — not an error, no message.
+      if (picked == null) return;
+      if (picked.isEmpty) return;
 
-      // Validate extensions
-      for (final path in paths) {
-        final fileName = path.split(RegExp(r'[/\\]')).last;
-        final ext = fileName.contains('.') ? fileName.split('.').last.toLowerCase() : '';
-        if (!_isExtensionAllowed(fileName, widget.toolName)) {
-          throw FileSourceException(
-            'invalid_format',
-            'This tool only accepts ${allowedExtensions.join(', ').toUpperCase()} files. You selected a .$ext file.',
+      for (final file in picked) {
+        final path = file['path']!;
+        final fileName = file['name'] ?? path.split(RegExp(r'[/\\]')).last;
+        final ext = fileName.contains('.')
+            ? fileName.split('.').last.toLowerCase()
+            : '';
+        if (!isFileCompatible(fileName, widget.toolName)) {
+          final selected = ext.isEmpty ? 'unknown' : ext;
+          _showMessage(
+            'This tool only accepts ${allowedExtensions.join(', ')} files. You selected a $selected file.',
           );
+          return;
         }
       }
 
+      final paths = picked.map((file) => file['path']!).toList(growable: false);
       setState(() {
-        _selectedFileNames =
-            paths.map((p) => p.split(RegExp(r'[/\\]')).last).toList();
+        _selectedFileNames = picked
+            .map(
+              (file) =>
+                  file['name'] ?? file['path']!.split(RegExp(r'[/\\]')).last,
+            )
+            .toList();
       });
 
       if (widget.allowMultiple) {
@@ -79,8 +77,8 @@ class _FilePickerButtonState extends State<FilePickerButton> {
       } else {
         widget.onFilePicked?.call(paths.first);
       }
-    } on FileSourceException catch (e) {
-      _showMessage(e.userMessage);
+    } catch (e) {
+      _showMessage(e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -88,9 +86,9 @@ class _FilePickerButtonState extends State<FilePickerButton> {
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -114,8 +112,8 @@ class _FilePickerButtonState extends State<FilePickerButton> {
           Text(
             _selectedFileNames!.first,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+              color: Theme.of(context).colorScheme.primary,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

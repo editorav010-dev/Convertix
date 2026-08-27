@@ -43,11 +43,9 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-        <receiver android:name=".ChooserReceiver" android:exported="false" />
     </application>
     <!-- Package visibility (Android 11+ / API 30+). Without these declarations
-         queryIntentActivities returns an INCOMPLETE list, so the file-source chooser
-         (FileSourceResolver.kt) would silently hide installed apps. -->
+         chooser resolution can return an incomplete compatible-app list. -->
     <queries>
         <!-- Used by the Flutter engine's ProcessTextPlugin. -->
         <intent>
@@ -83,16 +81,6 @@
         <intent>
             <action android:name="android.intent.action.GET_CONTENT"/>
             <data android:mimeType="*/*"/>
-        </intent>
-
-        <!-- Handlers for ACTION_PICK (Gallery apps on some OEM devices) -->
-        <intent>
-            <action android:name="android.intent.action.PICK"/>
-            <data android:mimeType="image/*"/>
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.PICK"/>
-            <data android:mimeType="video/*"/>
         </intent>
 
         <!-- Handlers for "Open File" (Phase 5D). -->

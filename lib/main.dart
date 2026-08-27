@@ -11,5 +11,6 @@ void main() async {
   if (Platform.isAndroid || Platform.isIOS) {
     await MobileAds.instance.initialize();
   }
+
   runApp(const ProviderScope(child: ConvertixApp()));
 }

@@ -13,55 +13,48 @@ import java.io.File
 
 class MainActivity : FlutterActivity() {
 
-    private lateinit var filePickerChannel: FilePickerChannel
     private var pendingResult: MethodChannel.Result? = null
-    private var pendingToolName: String? = null
-
-    private val PICK_FILE_REQUEST_CODE = 9001
+    private var allowMultiple: Boolean = false
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode == PICK_FILE_REQUEST_CODE) {
-            val methodResult = pendingResult
-            val toolName = pendingToolName
-            pendingResult = null
-            pendingToolName = null
+        super.onActivityResult(requestCode, resultCode, data)
 
-            if (methodResult == null) return
+        if (requestCode != PICK_REQUEST) return
 
-            if (resultCode != Activity.RESULT_OK || data == null) {
-                methodResult.success(emptyList<String>())
-                return
-            }
+        val result = pendingResult ?: return
+        pendingResult = null
 
-
-            if (toolName != null) {
-                filePickerChannel.onPickResult(toolName, data)
-            }
-
-            val uris = extractUris(data)
-            if (uris.isEmpty()) {
-                methodResult.success(emptyList<String>())
-                return
-            }
-
-            val paths = mutableListOf<String>()
-            for (uri in uris) {
-                val copied = runCatching { copyToCache(uri) }.getOrNull()
-                if (copied != null) paths += copied
-            }
-
-            if (paths.isEmpty()) {
-                methodResult.error(
-                    "copy_failed",
-                    "The selected file could not be read. It may have been moved or is on a provider that denies access.",
-                    null,
-                )
-            } else {
-                methodResult.success(paths)
-            }
-        } else {
-            super.onActivityResult(requestCode, resultCode, data)
+        if (resultCode != Activity.RESULT_OK || data == null) {
+            result.success(null)
+            return
         }
+
+        Thread {
+            try {
+                val picked = mutableListOf<Map<String, String>>()
+
+                fun processUri(uri: Uri) {
+                    val name = getDisplayName(uri) ?: uri.lastPathSegment ?: "file"
+                    val dest = copyToCache(uri, name)
+                    if (dest != null) {
+                        picked.add(mapOf("path" to dest.absolutePath, "name" to name))
+                    }
+                }
+
+                if (allowMultiple && data.clipData != null) {
+                    val clip = data.clipData!!
+                    for (i in 0 until clip.itemCount) processUri(clip.getItemAt(i).uri)
+                } else {
+                    data.data?.let { processUri(it) }
+                }
+
+                runOnUiThread { result.success(picked) }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    result.error("PICK_FAILED", e.message ?: "Unknown error", null)
+                }
+            }
+        }.start()
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -79,48 +72,36 @@ class MainActivity : FlutterActivity() {
             }
         }
 
-        // Phase 6B — File Picker Channel
-        filePickerChannel = FilePickerChannel(this)
-
-        MethodChannel(messenger, FILE_PICKER_CHANNEL).setMethodCallHandler { call, result ->
+        MethodChannel(messenger, PICKER_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
-                "launchPicker" -> {
+                "pickFiles" -> {
                     if (pendingResult != null) {
-                        result.error("pick_in_progress", "Another pick is already in progress", null)
-                        return@setMethodCallHandler
-                    }
-                    val toolName = call.argument<String>("toolName")
-                    val mimeType = call.argument<String>("mimeType")
-                    val allowMultiple = call.argument<Boolean>("allowMultiple") ?: false
-
-                    if (toolName == null || mimeType == null) {
-                        result.error("bad_arguments", "launchPicker requires toolName and mimeType", null)
+                        result.error("PICK_IN_PROGRESS", "Another file picker is already open", null)
                         return@setMethodCallHandler
                     }
 
+                    val mimeType = call.argument<String>("mimeType") ?: "*/*"
+                    allowMultiple = call.argument<Boolean>("allowMultiple") ?: false
                     pendingResult = result
-                    pendingToolName = toolName
+
+                    val base = Intent(Intent.ACTION_GET_CONTENT).apply {
+                        type = mimeType
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        if (allowMultiple) {
+                            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                        }
+                    }
+
                     try {
-                        filePickerChannel.launchPicker(toolName, mimeType, allowMultiple, PICK_FILE_REQUEST_CODE)
+                        startActivityForResult(Intent.createChooser(base, null), PICK_REQUEST)
                     } catch (e: android.content.ActivityNotFoundException) {
                         pendingResult = null
-                        pendingToolName = null
                         result.error(
-                            "source_unavailable",
+                            "PICK_FAILED",
                             "No app found that can open this file type. Please install a file manager like Files by Google.",
                             null,
                         )
                     }
-                }
-                "getPreferences" -> result.success(filePickerChannel.getPreferences())
-                "resetPreference" -> {
-                    val toolName = call.argument<String>("toolName")
-                    if (toolName != null) filePickerChannel.resetPreference(toolName)
-                    result.success(true)
-                }
-                "resetAllPreferences" -> {
-                    filePickerChannel.resetAllPreferences()
-                    result.success(true)
                 }
                 else -> result.notImplemented()
             }
@@ -196,61 +177,33 @@ class MainActivity : FlutterActivity() {
         result.success(MediaStoreWriter(applicationContext).delete(uris))
     }
 
-    // --- Phase 6B Utilities -----------------------------------------------------------------
-
-    private fun extractUris(data: Intent): List<Uri> {
-        data.clipData?.let { clip ->
-            return (0 until clip.itemCount).mapNotNull { clip.getItemAt(it).uri }
-        }
-        return listOfNotNull(data.data)
-    }
-
-    private fun copyToCache(uri: Uri): String {
-        val dir = File(cacheDir, PICK_DIR).apply { if (!exists()) mkdirs() }
-        val name = displayNameFor(uri) ?: "input_${System.nanoTime()}"
-
-        var target = File(dir, name)
-        var counter = 1
-        while (target.exists()) {
-            val stem = name.substringBeforeLast('.', name)
-            val ext = name.substringAfterLast('.', "")
-            val suffix = if (ext.isEmpty()) "" else ".$ext"
-            target = File(dir, "$stem-$counter$suffix")
-            counter++
-        }
-
-        contentResolver.openInputStream(uri)?.use { input ->
-            target.outputStream().use { out -> input.copyTo(out) }
-        } ?: throw IllegalStateException("Could not open $uri")
-
-        return target.absolutePath
-    }
-
-    private fun displayNameFor(uri: Uri): String? {
-        val cursor: Cursor? = runCatching {
-            contentResolver.query(
-                uri,
-                arrayOf(OpenableColumns.DISPLAY_NAME),
-                null,
-                null,
-                null,
-            )
-        }.getOrNull()
-
-        cursor?.use {
-            if (it.moveToFirst()) {
-                val index = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (index >= 0 && !it.isNull(index)) {
-                    return it.getString(index)?.takeIf { name -> name.isNotBlank() }
-                }
+    private fun getDisplayName(uri: Uri): String? {
+        var name: String? = null
+        contentResolver.query(uri, null, null, null, null)?.use { cursor: Cursor ->
+            if (cursor.moveToFirst()) {
+                val col = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (col >= 0) name = cursor.getString(col)
             }
         }
-        return uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.contains('.') }
+        return name
+    }
+
+    private fun copyToCache(uri: Uri, name: String): File? {
+        return try {
+            val dir = File(cacheDir, "convertix_picks").also { it.mkdirs() }
+            val dest = File(dir, name)
+            contentResolver.openInputStream(uri)?.use { input ->
+                dest.outputStream().use { output -> input.copyTo(output) }
+            }
+            dest
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private companion object {
         const val MEDIA_STORE_CHANNEL = "com.allformat.convertix/media_store"
-        const val FILE_PICKER_CHANNEL = "com.allformat.convertix/file_picker"
-        const val PICK_DIR = "convertix_picks"
+        private const val PICKER_CHANNEL = "com.allformat.convertix/file_picker"
+        private const val PICK_REQUEST = 7001
     }
 }

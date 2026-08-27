@@ -288,7 +288,7 @@ first-launch permissions onboarding screen.
 - [ ] `flutter analyze` clean
 - [ ] On-device verification with all 10 tools
 
-### Phase 6B — Android System Intent Resolver + Per-Tool Memory ✅ COMPLETED
+### Phase 6B — Android System Intent Resolver + Per-Tool Memory ⏸️ ON HOLD
 
 **Goal:** Replace the custom Flutter bottom-sheet file picker with the native Android system Intent Resolver (`Intent.createChooser`) and per-tool remembered preferences.
 
@@ -305,17 +305,17 @@ first-launch permissions onboarding screen.
 - [x] `flutter analyze` clean
 - [x] On-device verification on RMX3998 (Android 16)
 
-### Phase 6C — Bottom Navigation Shell 🔴 Not Started
+### Phase 6C — Bottom Navigation Shell ✅ COMPLETED
 
 **Goal:** Replace single-page navigation with a 3-tab bottom navigation bar.
 
-- [ ] Create `app/shell.dart` with bottom navigation (Home, History, Settings)
-- [ ] Tab 1 (Home): existing tool grid, no behaviour changes
-- [ ] Tab 2 (History): active tasks + completed conversion history (requires 6D)
-- [ ] Tab 3 (Settings): dark mode, output folders, backend status, licenses, etc.
-- [ ] Update `router.dart` to use `ShellRoute` for bottom navigation
-- [ ] Tool screens push on top of the shell
-- [ ] `flutter analyze` clean
+- [x] Create `app/shell.dart` with bottom navigation (Home, History, Settings)
+- [x] Tab 1 (Home): existing tool grid, no behaviour changes
+- [x] Tab 2 (History): active tasks + completed conversion history (requires 6D)
+- [x] Tab 3 (Settings): dark mode, output folders, backend status, licenses, etc.
+- [x] Update `router.dart` to use `ShellRoute` for bottom navigation
+- [x] Tool screens push on top of the shell
+- [x] `flutter analyze` clean
 
 ### Phase 6D — Conversion History Database 🔴 Not Started
 

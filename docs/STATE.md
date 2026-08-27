@@ -7,8 +7,9 @@ Phase 2A — COMPLETED ✅ (Backend Deployment)
 Phase 2B — COMPLETED ✅ (Document Tools — all 5 verified on device)
 Phase 5A — COMPLETED ✅ (Output Location Architecture — infrastructure only, not yet wired to tools)
 Phase 5B — COMPLETED ✅ (Shared File-Source Selection — live in all 10 tools)
-Phase 6B — COMPLETED ✅ (Native Android Intent Resolver via ACTION_GET_CONTENT + createChooser + Per-Tool Memory)
-Phase 5 — IN PROGRESS 🟡 (Product Polish, Shared UX & Output Structure) ← **next: 5C / 6C**
+Phase 6C — COMPLETED ✅ (Bottom Navigation Shell)
+Phase 6B — ON HOLD ⏸️ (Native Android Intent Resolver via ACTION_GET_CONTENT intercepted by OS. Pending user decision on Native BottomSheet)
+Phase 5 — IN PROGRESS 🟡 (Product Polish, Shared UX & Output Structure) ← **next: 6A / 6D**
 
 **Phase 5 is scheduled before Phase 3.** The storage change is user-visible behaviour that should ship
 in the v1.0.9 submission, and Phase 3 is blocked on the Play upload-key reset (not yet requested), so
