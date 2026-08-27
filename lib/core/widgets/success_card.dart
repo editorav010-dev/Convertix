@@ -1,23 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:open_file/open_file.dart';
 import 'package:share_plus/share_plus.dart';
+
+import '../services/output_location_service.dart';
 
 class SuccessCard extends StatelessWidget {
   final String fileName;
   final int fileSizeBytes;
+  
+  /// The raw filesystem path where the conversion output was temporarily written.
   final String outputPath;
+  
+  /// The `content://` URI if the output was published to the Android MediaStore.
+  final String? contentUri;
+  
+  /// Human-readable path (e.g. `DCIM/Images (Convertix)/file.webp`).
+  final String? displayLocation;
+  
   final VoidCallback? onOpenFile;
   final VoidCallback? onShare;
   final VoidCallback? onConvertAnother;
+  final bool isFolderOutput;
 
   const SuccessCard({
     super.key,
     required this.fileName,
     required this.fileSizeBytes,
     required this.outputPath,
+    this.contentUri,
+    this.displayLocation,
     this.onOpenFile,
     this.onShare,
     this.onConvertAnother,
+    this.isFolderOutput = false,
   });
 
   String _formatFileSize(int bytes) {
@@ -97,7 +113,7 @@ class SuccessCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Size: ${_formatFileSize(fileSizeBytes)}',
+                          displayLocation ?? 'Size: ${_formatFileSize(fileSizeBytes)}',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: colorScheme.onSurfaceVariant,
                           ),
@@ -116,7 +132,8 @@ class SuccessCard extends StatelessWidget {
                 FilledButton.icon(
                   onPressed: onOpenFile ??
                       () async {
-                        await OpenFile.open(outputPath);
+                        // OpenFile handles both paths and content:// URIs seamlessly.
+                        await OpenFile.open(contentUri ?? outputPath);
                       },
                   icon: const Icon(Icons.open_in_new, size: 20),
                   label: const Text('Open File'),
@@ -124,6 +141,9 @@ class SuccessCard extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: onShare ??
                       () async {
+                        // SharePlus requires an actual file path for XFile, not a content URI,
+                        // and outputPath is always populated — the temp file the conversion
+                        // wrote before it was published.
                         await Share.shareXFiles(
                           [XFile(outputPath)],
                           text: 'Converted with Convertix',
@@ -132,6 +152,36 @@ class SuccessCard extends StatelessWidget {
                   icon: const Icon(Icons.share, size: 20),
                   label: const Text('Share'),
                 ),
+                if (displayLocation != null || outputPath.isNotEmpty)
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      if (displayLocation != null) {
+                        try {
+                          final p = displayLocation!;
+                          final lastSlash = p.lastIndexOf('/');
+                          final relativeDir = (isFolderOutput || lastSlash == -1) 
+                              ? p 
+                              : p.substring(0, lastSlash);
+                          await outputLocationService.showInFolder(relativeDir);
+                          return;
+                        } catch (e) {
+                          // Fallback to clipboard if intent fails
+                        }
+                      }
+                      
+                      final textToCopy = displayLocation ?? outputPath;
+                      Clipboard.setData(ClipboardData(text: textToCopy));
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Saved location copied to clipboard:\n$textToCopy'),
+                          duration: const Duration(seconds: 3),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.folder_outlined, size: 20),
+                    label: const Text('Show in Folder'),
+                  ),
                 if (onConvertAnother != null)
                   TextButton.icon(
                     onPressed: onConvertAnother,
@@ -146,3 +196,4 @@ class SuccessCard extends StatelessWidget {
     );
   }
 }
+

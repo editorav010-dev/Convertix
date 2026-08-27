@@ -1,6 +1,8 @@
+# Mirrors the deployed Space (pandeypratham/libreoffice-converter).
+# Python 3.10 matches what that Space's image was built on.
 FROM python:3.10-slim
 
-# Install LibreOffice
+# Install LibreOffice (headless document conversion engine)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libreoffice-writer \
@@ -9,25 +11,16 @@ RUN apt-get update && \
     libreoffice-common \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Create app directory
 WORKDIR /app
 
-# Install Python deps with exact pinned versions
-# jinja2 and starlette pinned to avoid template cache crash
-RUN pip install --no-cache-dir \
-    jinja2==3.1.4 \
-    starlette==0.37.2 \
-    gradio==4.36.0 \
-    gradio_client==1.0.1 \
-    huggingface_hub==0.23.5 \
-    pymupdf==1.24.11 \
-    fastapi==0.111.0 \
-    pydantic==2.7.4
+# Install from requirements.txt so this file is never a second source of
+# version truth. Pin changes belong in requirements.txt only.
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy app
 COPY app.py .
 
-# Create a non-root user (HF requirement)
+# Create a non-root user (HF Spaces requirement)
 RUN useradd -m -u 1000 user
 USER user
 

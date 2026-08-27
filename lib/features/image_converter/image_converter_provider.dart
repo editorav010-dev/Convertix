@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 import 'package:image/image.dart' as img;
 
 import '../../core/models/conversion_result.dart';
 import '../../core/services/file_service.dart';
+import '../../core/services/output_location_service.dart';
 import '../media_tools/media_conversion_utils.dart';
 
 class ImageConverterConfig {
@@ -23,16 +25,18 @@ class ImageConverterNotifier extends AsyncNotifier<ConversionResult?> {
   Future<void> convert({
     required File inputFile,
     required ImageConverterConfig config,
+    void Function(double, [String?])? onProgress,
   }) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() => _run(inputFile, config));
+    state = await AsyncValue.guard(() => _run(inputFile, config, onProgress));
   }
 
   void cancel() {
     state = const AsyncData(null);
   }
 
-  Future<ConversionResult> _run(File inputFile, ImageConverterConfig config) async {
+  Future<ConversionResult> _run(File inputFile, ImageConverterConfig config, void Function(double, [String?])? onProgress) async {
+    onProgress?.call(0.1);
     final stopwatch = Stopwatch()..start();
     final jobId = uuid.v4();
     final targetFormat = config.outputFormat.toLowerCase();
@@ -52,24 +56,40 @@ class ImageConverterNotifier extends AsyncNotifier<ConversionResult?> {
         );
       }
 
+      onProgress?.call(0.5);
+
       final encodedBytes = switch (targetFormat) {
         'jpg' || 'jpeg' => img.encodeJpg(decodedImage, quality: config.quality.clamp(10, 100)),
         'png' => img.encodePng(decodedImage),
-        'webp' => img.encodeWebP(decodedImage),
+        'webp' => throw UnsupportedError('Unsupported format $targetFormat (WebP encoding not available)'),
         'bmp' => img.encodeBmp(decodedImage),
         'tiff' => img.encodeTiff(decodedImage),
-        _ => throw UnsupportedError('Unsupported image output format: $targetFormat'),
+        _ => throw UnsupportedError('Unsupported format $targetFormat'),
       };
 
-      final outputFile = File(outputPath);
-      await outputFile.writeAsBytes(encodedBytes);
+      onProgress?.call(0.8);
+
+      final outFile = File(outputPath);
+      await outFile.writeAsBytes(encodedBytes);
+      
+      final savedOutput = await outputLocationService.publish(
+        tool: ConvertixTool.imageConverter,
+        sourcePath: outputPath,
+        bareFileName: p.basename(outputPath),
+      );
+      
+      onProgress?.call(1.0);
+
       stopwatch.stop();
 
       return ConversionResult.success(
         outputPath: outputPath,
         outputFormat: targetFormat,
-        fileSizeBytes: await outputFile.length(),
+        fileSizeBytes: await outFile.length(),
         durationMs: stopwatch.elapsedMilliseconds,
+        contentUri: savedOutput.uri,
+        displayLocation: savedOutput.displayLocation,
+        isPublic: savedOutput.isPublic,
       );
     } catch (_) {
       stopwatch.stop();

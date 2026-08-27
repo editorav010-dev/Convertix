@@ -3,6 +3,7 @@ import 'package:path/path.dart' as p;
 import '../../../core/models/conversion_result.dart';
 import '../../../core/services/backend_service.dart';
 import '../../../core/services/file_service.dart';
+import '../../../core/services/output_location_service.dart';
 
 final documentConvertProvider = AsyncNotifierProvider<DocumentConvertNotifier, ConversionResult?>(() {
   return DocumentConvertNotifier();
@@ -15,6 +16,7 @@ class DocumentConvertNotifier extends AsyncNotifier<ConversionResult?> {
   Future<void> convert({
     required String inputPath,
     required String targetFormat,
+    void Function(double progress, [String? stageLabel])? onProgress,
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
@@ -25,6 +27,7 @@ class DocumentConvertNotifier extends AsyncNotifier<ConversionResult?> {
       final String outputPath = p.join(outputDir, outputName);
 
       final result = await backendService.uploadAndConvert(
+        tool: ConvertixTool.documentConverter,
         endpoint: '/document-convert',
         fields: {
           'target_format': targetFormat,
@@ -32,6 +35,7 @@ class DocumentConvertNotifier extends AsyncNotifier<ConversionResult?> {
         filePaths: [inputPath],
         outputPath: outputPath,
         outputFilename: outputName,
+        onProgress: onProgress,
       );
       
       if (!result.success) {

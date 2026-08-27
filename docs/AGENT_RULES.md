@@ -57,12 +57,13 @@ Do not add your changes on top of a broken baseline.
 - **Never generate a keystore or signing key** — this is the user's responsibility
 - **Never commit secrets** — `.env`, `*.jks`, `*.pem`, `key.properties` must never appear in git
 - **Never run a Python/shell script to auto-fix Dart/Flutter errors** — fix them directly
-- **Never swap a core dependency** (ffmpeg, riverpod, go_router, etc.) without explicit user approval
+- **Never swap a core dependency** (ffmpeg, riverpod, go_router, hive, etc.) without explicit user approval
 - **Never create documentation files not in the approved list** — do not invent `task.md`, `notes.md`, etc.
 - **Never combine multiple phases** — do exactly what the current phase asks, nothing more
 - **Never report `flutter analyze` output you did not actually run** — always run it and paste the real output
 - **Never self-approve architectural changes** — if something requires changing the system design, stop and ask
 - **Never push to git without the user's instruction**
+- **Never rename output files with timestamps** — use the `[original]_convertix.[ext]` pattern from `file_service.dart`
 
 ### 2C. The Approved Documentation Files
 
@@ -117,6 +118,7 @@ If you feel you need a new doc file, ask first.
 - Import paths: `package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart`
 - AdMob: `google_mobile_ads` — never remove, never skip initialization
 - AdMob init guard: always wrap in `if (Platform.isAndroid || Platform.isIOS)`
+- History database: `hive_flutter` — approved dependency for conversion history (Phase 6D)
 - Backend communication: Gradio REST API via SSE (not standard multipart FastAPI)
 - Backend calls are keyed by Gradio `api_name` in `_apiNames`, never by numeric `fn_index`
 - Backend URL: read from `.env` as `BACKEND_BASE_URL` (loaded by `flutter_dotenv` in `main.dart`);

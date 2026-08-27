@@ -245,15 +245,21 @@ without the user moving anything.
 
 Guaranteed behaviour:
 
-- Filenames follow `[original_name]_[timestamp].[ext]` — predictable, never random
+- Filenames follow the `[original]_convertix.[ext]` pattern — predictable, never random
+  - Pattern: `[original_filename_without_extension]_convertix.[target_ext]`
+  - Examples: `interview.mp4` → Video to Audio → `interview_convertix.mp3`;
+    `report.docx` → Document Convert → `report_convertix.pdf`
+  - Duplicate handling: append `(1)`, `(2)`… before the extension:
+    `interview_convertix.mp3` → `interview_convertix (1).mp3` → `interview_convertix (2).mp3`
+  - Timestamp-based naming is removed entirely (Phase 6A)
 - The folder is created automatically, including after the user deletes it
 - An existing file is never overwritten — ` (1)`, ` (2)`… is appended
 - A failed save leaves the source intact; the user's output is never silently lost
 - Media indexing is asynchronous, so a new file may take a moment to appear in Gallery
 
 Implementation is `OutputLocationService` over a MediaStore platform channel — see
-`ARCHITECTURE.md` §Output File Naming & Placement. Split PDF produces a `.zip`, which Gallery
-correctly does not index.
+`ARCHITECTURE.md` §Output File Naming & Placement. Split PDF produces individual PDFs
+extracted from the backend ZIP (Phase 5 decision).
 
 ---
 
@@ -265,7 +271,126 @@ correctly does not index.
 - No file contents stored beyond the active job
 - Analytics: opt-in only, no PII, no file names or URLs collected
 - Outputs are written to public media collections, never to app-private storage
+- Output filenames: `[original]_convertix.[ext]` — never timestamps, never random names
 - Advertising: AdMob banner ads on tool screens — see §Monetisation (AdMob)
+- Conversion history: persisted locally via Hive (`hive_flutter`) — see §Conversion History
+
+---
+
+## File Selection (Phase 6B — Android System Intent Resolver)
+
+All file picking goes through native Android intents fired via the system Intent Resolver (`Intent.createChooser`). The custom Flutter bottom-sheet chooser from Phase 5B and the previous Kotlin BottomSheetDialog designs are completely replaced by this native system implementation.
+
+| Tool(s) | Mechanism |
+|---|---|
+| Image Converter | Intent with `image/*`. System chooser shows Gallery, Photos, etc. |
+| Video Converter, Video Compression, Video to Audio | Intent with `video/*`. System chooser shows Video players, Photos, etc. |
+| Audio Converter | Intent with `audio/*`. System chooser shows Files, Audio players, etc. |
+| Image to PDF | Intent with `image/*`. System chooser shows Gallery, Photos, etc. |
+| Greyscale, Merge, Split PDF | Intent with `application/pdf`. System chooser shows Files, Drive, etc. |
+| Document Convert | Intent with `*/*`. System chooser shows Files, Drive, etc. |
+
+Convertix implements its own per-tool memory for file sources:
+- **First use:** Android native Intent Resolver with app icons and names.
+- **Subsequent uses:** If a preferred app was saved for this specific tool, it launches directly. If uninstalled, falls back to the Intent Resolver.
+- **Settings:** Per-tool reset available in the Settings tab (e.g., "Image Converter → Files by Google [Reset]").
+- **Strict MIME validation:** After a file is picked, Convertix strictly validates the file extension against the tool's allowed format list. If incompatible, a user-friendly error is shown (e.g., "This tool only accepts [format list]. Please select a compatible file.") and the conversion is blocked.
+
+The permission-free property from Phase 5B is preserved — all mechanisms rely on implicit intents requiring no runtime storage permission.
+
+---
+
+## Bottom Navigation (Phase 6C)
+
+The app uses a 3-tab bottom navigation shell:
+
+### Tab 1 — Home (leftmost)
+- Existing tool grid (10 tools, 2 sections: Media Tools + Document Tools)
+- No changes to tool behaviour
+
+### Tab 2 — History / Active Tasks (middle)
+- Two sections: **Active Tasks** (current conversions) and **History** (completed)
+- **Active Tasks:** shows running conversions with real progress bar, accurate %, ETA, and Cancel button
+- **History:** shows completed conversions as cards, grouped by: Today, Yesterday, Earlier
+- Each history card shows: filename, tool name, file size, timestamp, output format
+- Each history card has: Open, Show in Folder, Share, Rename, Delete
+  - **Rename:** renames the actual file on disk via MediaStore `ContentResolver`
+  - **Delete:** deletes the actual file via MediaStore; API 30+ uses `createDeleteRequest` for
+    user confirmation; API <30 direct delete
+  - **File moved/deleted externally:** show "File no longer exists" inline on the card;
+    disable Open/Share/Rename/Delete; show "Remove from History" button instead
+- **Clear All History** button at top of history section
+
+### Tab 3 — Settings (rightmost)
+- Dark mode toggle (persisted to SharedPreferences, applies app-wide)
+- Output folder section: one row per tool showing current output path with Change and Reset buttons;
+  changing actually redirects output to the new path, not just updates UI
+- Backend status indicator: ping `/health` on settings open; show
+  Green (awake) / Orange (cold start) / Red (unreachable)
+- App version display
+- Open Source Licenses (links to existing licenses screen)
+- Clear Conversion History button
+- Rate the App (opens Play Store listing)
+- AdMob disclosure text: "This app is free and supported by ads"
+
+---
+
+## Conversion History (Phase 6D)
+
+Local persistence layer using **Hive** (`hive_flutter` package — approved dependency).
+
+History record fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | String | Auto-generated UUID |
+| `toolName` | String | Which of the 10 tools |
+| `inputFileName` | String | Original input filename |
+| `outputFileName` | String | Output filename after conversion |
+| `outputUri` | String | MediaStore content URI |
+| `outputFormat` | String | Target format extension |
+| `fileSizeBytes` | int | Output file size in bytes |
+| `durationMs` | int | How long conversion took |
+| `timestamp` | DateTime | When conversion completed |
+| `status` | enum | `completed`, `failed`, `cancelled` |
+
+History is append-only during a session. Entries are removed only when the user explicitly
+deletes them or uses Clear All History.
+
+---
+
+## Accurate Progress & ETA (Phase 6E)
+
+### FFmpeg tools (video/audio)
+- Real %: `statistics.getTime() / totalDuration * 100`
+- ETA: hidden for first 3 seconds; after that: `remaining_ms = (1.0 - progress) / throughput_per_ms`
+- Show elapsed time alongside ETA
+
+### Gradio tools (document)
+- No real %: show stage labels instead: "Uploading…" → "Processing…" → "Finalizing…"
+- Show elapsed time only, no ETA
+- Never show a fake progress bar
+
+### Cancel behaviour
+- FFmpeg: `FFmpegKit.cancel()` + clean up temp files + remove pending MediaStore entry
+- Gradio: cancel the Dio request + clean up
+- After cancel: status shown as "Cancelled" in history with no output file
+
+---
+
+## Permissions Onboarding (Phase 6F)
+
+First-launch screen shown once, before the home screen. Dismissed state persisted to SharedPreferences.
+
+Permissions requested with plain-language explanations:
+
+| Permission | API | Explanation shown to user |
+|---|---|---|
+| `MANAGE_MEDIA` | 31+ | "Allows Convertix to rename and delete your converted files directly from the app" |
+| `POST_NOTIFICATIONS` | 33+ | "Allows Convertix to notify you when a long conversion finishes in the background" |
+
+If either permission is denied: app still works; a warning is shown inline when the user tries
+to use the denied feature. Permissions can be re-requested from Settings.
 
 ---
 
@@ -278,8 +403,7 @@ correctly does not index.
 - Video editing, trimming, or clip cutting
 - Password-protected PDF operations
 - Subtitle extraction or download
-- Cloud sync or conversion history
-- Dark mode
+- Cloud sync
 
 ---
 
@@ -288,8 +412,6 @@ correctly does not index.
 - Custom LUT import (.cube files) for Video Compression
 - Batch conversion for all media tools
 - Drag-to-reorder in Image to PDF
-- Conversion history log (local)
-- Dark mode
 - Background task processing (conversion continues when app is backgrounded)
 - Split PDF by blank page detection
 - OCR via backend

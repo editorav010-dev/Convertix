@@ -44,8 +44,9 @@
 
 **Framework:** Flutter (Dart)
 **State management:** Riverpod (`flutter_riverpod`)
-**Navigation:** go_router
+**Navigation:** go_router + bottom navigation shell (3 tabs)
 **HTTP client:** Dio (with retry interceptor)
+**Local database:** Hive (`hive_flutter`) — conversion history
 **Ads:** Google AdMob (`google_mobile_ads`)
 **Target SDK:** 36 (Android 16) — mandatory
 **Version:** 1.0.9 (version code 16)
@@ -60,14 +61,27 @@ lib/
 │
 ├── app/
 │   ├── app.dart              # MaterialApp.router root widget
-│   ├── router.dart           # go_router route definitions (all 10 tool routes)
-│   └── theme.dart            # ColorScheme, TextTheme, component themes
+│   ├── router.dart           # go_router route definitions (all 10 tool routes + bottom nav)
+│   ├── theme.dart            # ColorScheme, TextTheme, component themes
+│   └── shell.dart            # Bottom navigation shell (Home, History, Settings)
 │
 ├── features/
 │   │
 │   ├── home/
 │   │   ├── home_screen.dart         # tool grid — 5 media + 5 document tiles
 │   │   └── home_provider.dart
+│   │
+│   ├── history/
+│   │   ├── history_screen.dart       # Active Tasks + completed History tabs
+│   │   └── history_provider.dart     # Riverpod notifier for history state
+│   │
+│   ├── settings/
+│   │   ├── settings_screen.dart     # Dark mode, output folders, backend status, etc.
+│   │   ├── settings_provider.dart   # Riverpod notifier for settings state
+│   │   └── licenses_screen.dart     # Open Source Licenses (existing)
+│   │
+│   ├── onboarding/
+│   │   └── onboarding_screen.dart   # First-launch permissions onboarding
 │   │
 │   ├── image_converter/
 │   │   ├── image_converter_screen.dart
@@ -117,11 +131,13 @@ lib/
 │   │   ├── file_service.dart         # temp file management; bare output FILENAME generation
 │   │   ├── file_source_service.dart  # WHERE input comes from — installed picker enumeration
 │   │   ├── output_location_service.dart  # WHERE outputs land — MediaStore public collections
-│   │   └── permission_service.dart   # DEAD CODE, and broken — see STATE.md open question 8
+│   │   ├── history_service.dart     # Hive-backed conversion history CRUD
+│   │   └── settings_service.dart    # SharedPreferences wrapper for app settings
 │   │
 │   ├── models/
 │   │   ├── conversion_job.dart       # job ID, tool name, status, progress (0.0–1.0), timestamps
-│   │   └── conversion_result.dart    # output file path, output format, success/error
+│   │   ├── conversion_result.dart    # output file path, output format, success/error
+│   │   └── history_entry.dart        # Hive model for conversion history records
 │   │
 │   ├── widgets/
 │   │   ├── file_picker_button.dart   # unified file picker UI (uses image_picker / file_picker)
@@ -336,72 +352,48 @@ HTTP body:
 
 ---
 
-## File Source Selection (Phase 5B)
+## File Source Selection (Phase 6B — Android System Intent Resolver)
 
-All 10 tools take input through one widget — `core/widgets/file_picker_button.dart`. It asks
-`FileSourceService` which sources exist, shows a chooser only when there is more than one, then
-launches the chosen source.
+All 10 tools take input through `core/widgets/file_picker_button.dart`. It delegates to the Android native side via MethodChannel to `FilePickerChannel.kt`.
 
-### Nothing is hardcoded to a vendor
+### Android System Intent Resolver
 
-`FileSourceResolver.kt` discovers sources with `queryIntentActivities`. Google Photos, Files, and
-any Gallery app appear because they resolved, not because they are named in code — if they are not
-installed they simply do not appear.
+Convertix uses the native Android system Intent Resolver (`Intent.createChooser`) instead of a custom Kotlin BottomSheetDialog. The platform channel exposes a `launchPicker(toolName, mimeType, allowMultiple)` method to Dart.
 
-**This requires the `<queries>` block in `AndroidManifest.xml`.** On API 30+ package visibility
-means an undeclared intent returns an *incomplete* list, so removing those entries silently hides
-installed apps rather than producing an error.
+When the picker is launched, `FilePickerChannel.kt` uses the exact MIME type specified by the tool (e.g. `image/*`, `application/pdf`, `*/*`). The system chooser then natively displays all compatible apps with their icons and names.
 
-### Three mechanisms, ordered best-first
+**This requires the `<queries>` block in `AndroidManifest.xml`.** On API 30+, package visibility means an undeclared intent returns an *incomplete* list, so keeping the `<queries>` block ensures the system can correctly resolve all available apps.
 
-| Mechanism | What it is | Offered for |
-|---|---|---|
-| `photo_picker` | Android Photo Picker (`ACTION_PICK_IMAGES`) | image + video only |
-| `open_document` | System SAF document picker | every kind — always present on API 24+ |
-| `get_content` | A resolved third-party `ACTION_GET_CONTENT` activity | every kind |
+### Per-Tool Source Preferences
 
-The Photo Picker is offered for image and video only — it cannot supply audio or documents. It is
-native on API 33+; on 30–32 it arrives via a Play system update, so presence is **probed**, not
-assumed. Below API 30 the device falls back to SAF and `GET_CONTENT`, which always work.
+Convertix maintains its own memory of the user's preferred app for each tool. 
 
-### Per-tool mapping
+When a user selects a file from an app via the chooser, Convertix saves the returned `ComponentName` in Android `SharedPreferences`. The key is specific to the tool (e.g., `pref_source_image_converter`, `pref_source_merge_pdf`).
 
-`FileSourceKind` decides which sources are *enumerated*; `allowedExtensions` decides what is
-*selectable*. They are separate on purpose:
+On subsequent uses of the same tool, `FilePickerChannel.kt` checks the SharedPreferences:
+1. **Found & Installed:** If a ComponentName is stored and the app is still installed, it fires an explicit intent to launch that app directly, bypassing the system chooser.
+2. **Not Found or Uninstalled:** If no preference exists, or the previously saved app has been uninstalled, it clears the invalid preference (if any) and falls back to `Intent.createChooser`.
 
-| Tool(s) | Kind |
-|---|---|
-| Image Converter | `image` |
-| Video Converter, Video Compression, Video to Audio | `video` |
-| Audio Converter | `audio` — file-manager first, no Photo Picker |
-| All 5 document tools **including Image to PDF** | `document` |
+These preferences are exposed to Dart via `getPreferences()` and `resetPreference(toolName)`, allowing them to be viewed and cleared from the Settings tab.
 
-Image to PDF passes `document` despite taking images: the brief specifies file managers for the
-document tools, while the image extensions still restrict what can be chosen. Do not "fix" this
-to `image`.
+### File Type Validation
+
+Strict MIME type filtering on the intent level is not enough, as some file managers allow picking arbitrary files regardless of the intent's MIME type.
+
+Therefore, Convertix implements **Strict File Type Validation** after a file is returned:
+1. `format_constants.dart` defines a map of allowed extensions per tool.
+2. When a file is picked, `file_picker_button.dart` validates the file's extension against the tool's allowed list.
+3. If the extension is incompatible (e.g. importing a video into Image Converter), the process is blocked and a user-friendly error is shown: "This tool only accepts [format list]. Please select a compatible file."
 
 ### Why this stays permission-free
 
-Every mechanism is a picker intent, so **no runtime storage permission is needed on any API
-level**. That is the reason the app works unchanged from API 24 to 36. Replacing any of these with
-a direct filesystem read would reintroduce the permission problem described in
-`STATE.md` → `permission_service.dart`.
+Every mechanism is a picker intent, so **no runtime storage permission is needed on any API level**. That is the reason the app is portable across API 24–36, and the 6B chooser preserves it.
 
 ### Picked files become real paths
 
-Media tools hand input to FFmpegKit and document tools upload it via Dio — both need a readable
-file, not a URI. `FilePickerDelegate` copies each picked content URI into
-`cacheDir/convertix_picks/`, preserving the provider-reported display name so the extension (which
-drives format detection downstream) survives.
+Media tools hand input to FFmpegKit and document tools upload it via Dio — both need a readable file, not a URI. `FilePickerChannel` copies each picked content URI into `cacheDir/convertix_picks/`, preserving the provider-reported display name so the extension (which drives format detection downstream) survives.
 
-An empty result means **the user cancelled** — a normal outcome, not an error. Genuine failures
-surface as `FileSourceException` with codes `source_unavailable`, `copy_failed`,
-`pick_in_progress`, `bad_source`.
-
-> **Kotlin gotcha, learned the hard way:** Kotlin block comments **nest**. Writing a MIME wildcard
-> like image-slash-star inside a `/** … */` comment opens a nested comment and swallows the rest of
-> the file, producing a cascade of unrelated "unresolved reference" errors. Keep MIME wildcards in
-> string literals or `//` line comments.
+An empty result means **the user cancelled** — a normal outcome, not an error. Genuine failures surface as `FileSourceException` with codes `source_unavailable`, `copy_failed`, `pick_in_progress`, `bad_source`, or `invalid_format`.
 
 ---
 
@@ -414,15 +406,21 @@ Two separate concerns, and conflating them has caused a real bug:
 ```dart
 String buildOutputPath(String inputName, String targetExt) {
   final baseName = path.basenameWithoutExtension(inputName);
-  final timestamp = DateTime.now().millisecondsSinceEpoch;
-  return '${baseName}_$timestamp.$targetExt';   // BARE FILENAME — no directory
+  return '${baseName}_convertix.$targetExt';   // BARE FILENAME — no directory
 }
 ```
 
-Pattern: `[original_name]_[timestamp].[ext]` — e.g. `interview_video_1720000000000.mp3`
+Pattern: `[original_filename_without_extension]_convertix.[target_ext]`
+— e.g. `interview_convertix.mp3`, `report_convertix.pdf`
+
+Duplicate handling is in `OutputLocationService` / `MediaStoreWriter.kt`: append `(1)`, `(2)`…
+before the extension — e.g. `interview_convertix (1).mp3`.
 
 **This returns a bare filename with no directory.** Treating it as a full path resolves writes
 against a read-only CWD — the bug fixed in `110bc57`. Never prefix it yourself.
+
+> **Phase 6A change:** Timestamp-based naming (`[name]_[timestamp].[ext]`) is removed entirely.
+> All output files use the `_convertix` suffix pattern.
 
 ### 2. Placement — `output_location_service.dart` (Phase 5A)
 
@@ -470,12 +468,87 @@ Temp files remain at `getTemporaryDirectory()/convertix/<jobId>/`, cleaned in a 
 
 ---
 
-## Navigation (go_router)
+## Conversion History (Hive Database)
+
+Local persistence using `hive_flutter`. Initialised in `main.dart` before `runApp()`.
+
+### Box name: `conversion_history`
+
+### Schema: `HistoryEntry` (Hive TypeAdapter)
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `String` | UUID v4 |
+| `toolName` | `String` | One of the 10 tool identifiers |
+| `inputFileName` | `String` | Original input filename |
+| `outputFileName` | `String` | Output filename after conversion |
+| `outputUri` | `String` | MediaStore `content://` URI |
+| `outputFormat` | `String` | Target extension (e.g. `pdf`, `mp3`) |
+| `fileSizeBytes` | `int` | Output size in bytes |
+| `durationMs` | `int` | Conversion wall-clock time |
+| `timestamp` | `DateTime` | ISO 8601 completion time |
+| `status` | `String` | `completed` \| `failed` \| `cancelled` |
+
+### Service: `history_service.dart`
+
+- `addEntry(HistoryEntry)` — append-only during conversion
+- `getAll()` — sorted by timestamp descending
+- `deleteEntry(String id)` — remove single entry
+- `clearAll()` — delete all entries
+- File existence is checked lazily (on card render) via `ContentResolver.query(uri)`
+
+---
+
+## Settings Service (SharedPreferences)
+
+`settings_service.dart` wraps SharedPreferences for app-wide settings.
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `dark_mode` | `bool` | `false` | Dark mode toggle |
+| `onboarding_dismissed` | `bool` | `false` | First-launch onboarding completion |
+| `picker_pref_image` | `String?` | `null` | Remembered file picker source for images |
+| `picker_pref_video` | `String?` | `null` | Remembered file picker source for video |
+| `picker_pref_audio` | `String?` | `null` | Remembered file picker source for audio |
+| `picker_pref_document` | `String?` | `null` | Remembered file picker source for documents |
+| `output_dir_<tool>` | `String?` | `null` | Custom output directory override per tool |
+
+---
+
+## MediaStore Operations (Kotlin Platform Channel)
+
+`MediaStoreWriter.kt` implements the `com.allformat.convertix/media_store` channel.
+
+### Existing method: `saveToCollection`
+Writes output file to public MediaStore collection (see §Output File Naming & Placement).
+
+### New methods (Phase 6D):
+
+| Method | Description | API handling |
+|---|---|---|
+| `renameFile(contentUri, newDisplayName)` | Renames via `ContentResolver.update()` | API 30+: `createWriteRequest()` for user consent; <30: direct update |
+| `deleteFile(contentUri)` | Deletes via `ContentResolver.delete()` | API 30+: `createDeleteRequest()` for user consent; <30: direct delete |
+| `checkFileExists(contentUri)` | Returns `bool` — queries ContentResolver | All APIs |
+
+---
+
+## Navigation (Bottom Navigation Shell + go_router)
+
+The app uses a 3-tab bottom navigation shell. Tool screens push on top of the shell.
+
+### Bottom Navigation Tabs
+
+| Tab | Position | Screen |
+|---|---|---|
+| Home | Left | `home_screen.dart` — tool grid |
+| History | Middle | `history_screen.dart` — active tasks + completed history |
+| Settings | Right | `settings_screen.dart` — app configuration |
+
+### Tool Routes (push on top of shell)
 
 ```dart
 // app/router.dart
 
-GoRoute(path: '/',             builder: HomeScreen)
 GoRoute(path: '/image-convert', builder: ImageConverterScreen)
 GoRoute(path: '/video-to-audio', builder: VideoToAudioScreen)
 GoRoute(path: '/audio-convert', builder: AudioConverterScreen)

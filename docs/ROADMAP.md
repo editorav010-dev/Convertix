@@ -203,68 +203,162 @@ returning `'${outputDir}/...'`; the real function returns a bare filename (the `
 `ad_constants.dart` (`ca-app-pub-2093403233028868/1705631815`). iOS still holds a Google **test**
 unit — a separate iOS ad unit must be created before App Store submission (Phase 3).
 
-### Phase 5C — "Don't Ask Again" Preferences
+### Phase 5C — "Don't Ask Again" Preferences ✅ COMPLETED
 
 **Goal:** Remembered source preference that is never an irreversible choice.
 
-- [ ] Preference store on the existing `shared_preferences` (**no new dependency**)
-- [ ] Scoped **per media category**, not globally (images vs video may differ)
-- [ ] Checkbox in the source picker; remembered source used directly on later runs
-- [ ] Settings screen + `/settings` route (neither exists yet) with a per-category reset
-- [ ] Fallback when a remembered source is uninstalled or no longer resolves
-- [ ] Docs: `SPEC.md`, `ARCHITECTURE.md` §Navigation
+- [x] Preference store on the existing `shared_preferences` (**no new dependency**)
+- [x] Scoped **per media category**, not globally (images vs video may differ)
+- [x] Checkbox in the source picker; remembered source used directly on later runs
+- [x] Settings screen + `/settings` route (neither exists yet) with a per-category reset
+- [x] Fallback when a remembered source is uninstalled or no longer resolves
+- [x] Docs: `SPEC.md`, `ARCHITECTURE.md` §Navigation
 
-### Phase 5D — Post-Conversion Actions (Open / Show in Folder / Share)
+### Phase 5D — Post-Conversion Actions (Open / Show in Folder / Share) ✅ COMPLETED
 
 **Goal:** One shared action component used by all 10 tools.
 
-- [ ] Consolidate the two success UIs into a single shared component
-- [ ] `Open File` via content URI + `ACTION_VIEW`; useful message when no handler exists
-- [ ] `Show in Folder` — best-effort, honestly degraded: no universal Android "reveal in folder"
+- [x] Consolidate the two success UIs into a single shared component
+- [x] `Open File` via content URI + `ACTION_VIEW`; useful message when no handler exists
+- [x] `Show in Folder` — best-effort, honestly degraded: no universal Android "reveal in folder"
       intent exists; fall back to the containing collection, then to showing a copyable path
-- [ ] `Share` via content URI / FileProvider — never a raw private path
-- [ ] Verify `open_file` and `share_plus` against **MediaStore content URIs** (both are currently fed
+- [x] `Share` via content URI / FileProvider — never a raw private path
+- [x] Verify `open_file` and `share_plus` against **MediaStore content URIs** (both are currently fed
       filesystem paths; 5A changes that input)
-- [ ] Sharing target that rejects the format fails gracefully
-- [ ] Docs: `ARCHITECTURE.md`, `SPEC.md`
+- [x] Sharing target that rejects the format fails gracefully
+- [x] Docs: `ARCHITECTURE.md`, `SPEC.md`
 
-### Phase 5E — Honest Progress & ETA Infrastructure
+### Phase 5E — Honest Progress & ETA Infrastructure ✅ COMPLETED
 
 **Goal:** Progress always reflects real work. No timer-driven percentages.
 
-- [ ] Extend the progress model: determinate vs indeterminate, stage label, ETA, `cancelled` state
-- [ ] **Real percentage** where measurable — FFmpeg `time=` against source duration (video/audio)
-- [ ] **Stage-based only** where it is not: `image_converter_provider` uses pure-Dart `package:image`
+- [x] Extend the progress model: determinate vs indeterminate, stage label, ETA, `cancelled` state
+- [x] **Real percentage** where measurable — FFmpeg `time=` against source duration (video/audio)
+- [x] **Stage-based only** where it is not: `image_converter_provider` uses pure-Dart `package:image`
       with no progress hooks; document tools' Gradio SSE emits `heartbeat|generating|error|complete`
       with no percentage. Show "Converting page 4 of 12…", "Finalizing…" — never a fake bar
-- [ ] ETA derived from observed throughput only; hidden when it cannot be computed
-- [ ] Cancellation surfaced where supported; app-closed-mid-processing handled
-- [ ] Optional follow-up: emit `gr.Progress()` from `backend/app.py` to make document progress real
-- [ ] Docs: `ARCHITECTURE.md` §Document Tool Execution Flow, `SPEC.md`
+- [x] ETA derived from observed throughput only; hidden when it cannot be computed
+- [x] Cancellation surfaced where supported; app-closed-mid-processing handled
+- [x] Optional follow-up: emit `gr.Progress()` from `backend/app.py` to make document progress real
+- [x] Docs: `ARCHITECTURE.md` §Document Tool Execution Flow, `SPEC.md`
 
-### Phase 5F — Per-Tool Integration (all 10)
+### Phase 5F — Per-Tool Integration (all 10) ✅ COMPLETED
 
 **Goal:** Every tool uses the shared services; no copy-pasted logic.
 
-- [ ] 5 media tools (mostly via `media_tool_screen.dart` + `media_conversion_utils.dart`)
-- [ ] 5 document tools (each provider's output path)
-- [ ] `flutter analyze` after **each** tool — `AGENT_RULES.md` §3A, one change at a time
-- [ ] Media path never routed through the backend, document path never through FFmpegKit
-- [ ] `log_profiles.dart` filter chains untouched
+- [x] 5 media tools (mostly via `media_tool_screen.dart` + `media_conversion_utils.dart`)
+- [x] 5 document tools (each provider's output path)
+- [x] `flutter analyze` after **each** tool — `AGENT_RULES.md` §3A, one change at a time
+- [x] Media path never routed through the backend, document path never through FFmpegKit
+- [x] `log_profiles.dart` filter chains untouched
 
-### Phase 5G — Compatibility Matrix & Regression Pass
+### Phase 5G — Compatibility Matrix & Regression Pass ✅ COMPLETED
 
 **Goal:** Verified on real Android version boundaries, not assumed.
 
-- [ ] Verify at API 24–28 (legacy write), 29–32 (scoped storage), 33+ (media permissions,
+- [x] Verify at API 24–28 (legacy write), 29–32 (scoped storage), 33+ (media permissions,
       Photo Picker), 36 (current target)
-- [ ] On-device pass for all 10 tools on RMX3998 (Android 16)
-- [ ] Gallery/Photos/Files visibility confirmed, including media-indexing delay
-- [ ] Edge cases: deleted folder, duplicate name, cancel, mid-run failure, no storage, unsupported
+- [x] On-device pass for all 10 tools on RMX3998 (Android 16)
+- [x] Gallery/Photos/Files visibility confirmed, including media-indexing delay
+- [x] Edge cases: deleted folder, duplicate name, cancel, mid-run failure, no storage, unsupported
       type, missing handler app
-- [ ] Resolve the `permission_service.dart` decision above
-- [ ] `flutter analyze` clean, `flutter test` passing
-- [ ] Docs: `STATE.md`, `ROADMAP.md`, `AGENTS.md`, `README.md` where relevant
+- [x] Resolve the `permission_service.dart` decision above
+- [x] `flutter analyze` clean, `flutter test` passing
+- [x] Docs: `STATE.md`, `ROADMAP.md`, `AGENTS.md`, `README.md` where relevant
+
+---
+
+## Phase 6 — Bottom Navigation, History, Settings, Onboarding & Fixes
+
+**Goal:** Replace the single-page layout with a 3-tab bottom navigation shell (Home, History,
+Settings), add conversion history with local persistence, fix output file naming, replace the
+custom Flutter file picker with native Android intents, add accurate progress/ETA, and add a
+first-launch permissions onboarding screen.
+**Status:** 🔴 Not started — **scheduled before Phase 3** (iOS/Store)
+
+### Phase 6A — Output File Naming Fix 🔴 Not Started
+
+**Goal:** Fix the current bug where output files are saved with random/timestamped names.
+
+- [ ] Update `file_service.dart` `buildOutputPath()` to use `[original]_convertix.[ext]` pattern
+- [ ] Remove all timestamp-based naming logic
+- [ ] Duplicate handling: append `(1)`, `(2)`… before the extension
+- [ ] Examples: `interview.mp4` → `interview_convertix.mp3`,
+      `report.docx` → `report_convertix.pdf`
+- [ ] `flutter analyze` clean
+- [ ] On-device verification with all 10 tools
+
+### Phase 6B — Android System Intent Resolver + Per-Tool Memory ✅ COMPLETED
+
+**Goal:** Replace the custom Flutter bottom-sheet file picker with the native Android system Intent Resolver (`Intent.createChooser`) and per-tool remembered preferences.
+
+- [x] Implement `FilePickerChannel.kt` to expose `launchPicker` to Dart
+- [x] Implement checking `SharedPreferences` for a remembered `ComponentName` per tool (e.g. `pref_source_image_converter`)
+- [x] Launch directly if the remembered app is still installed
+- [x] Launch `Intent.createChooser` with correct strict MIME type if no app is remembered or if it was uninstalled
+- [x] Save chosen `ComponentName` after the user selects a file
+- [x] Expose `getPreferences()` and `resetPreference(toolName)` for the Settings tab
+- [x] Update `format_constants.dart` with allowed extensions map per tool
+- [x] Update `file_picker_button.dart` to strictly validate file extensions after a file is returned, showing an error for incompatible formats
+- [x] Update `settings_screen.dart` to add a "File Source Preferences" section listing per-tool remembered apps with Reset buttons
+- [x] Delete `FileSourceResolver.kt` and all Kotlin `BottomSheetDialog` code
+- [x] `flutter analyze` clean
+- [x] On-device verification on RMX3998 (Android 16)
+
+### Phase 6C — Bottom Navigation Shell 🔴 Not Started
+
+**Goal:** Replace single-page navigation with a 3-tab bottom navigation bar.
+
+- [ ] Create `app/shell.dart` with bottom navigation (Home, History, Settings)
+- [ ] Tab 1 (Home): existing tool grid, no behaviour changes
+- [ ] Tab 2 (History): active tasks + completed conversion history (requires 6D)
+- [ ] Tab 3 (Settings): dark mode, output folders, backend status, licenses, etc.
+- [ ] Update `router.dart` to use `ShellRoute` for bottom navigation
+- [ ] Tool screens push on top of the shell
+- [ ] `flutter analyze` clean
+
+### Phase 6D — Conversion History Database 🔴 Not Started
+
+**Goal:** Local persistence for conversion history using Hive.
+
+- [ ] Add `hive_flutter` to `pubspec.yaml` (approved new dependency)
+- [ ] Create `HistoryEntry` Hive model with TypeAdapter
+- [ ] Create `history_service.dart` (CRUD operations)
+- [ ] Create `history_screen.dart` with Active Tasks and History sections
+- [ ] History cards: filename, tool name, file size, timestamp, output format
+- [ ] Card actions: Open, Show in Folder, Share, Rename, Delete
+- [ ] Rename: MediaStore `ContentResolver` update (new Kotlin channel method)
+- [ ] Delete: MediaStore delete with `createDeleteRequest` (API 30+)
+- [ ] Handle externally moved/deleted files ("File no longer exists" state)
+- [ ] Group by: Today, Yesterday, Earlier
+- [ ] Clear All History button
+- [ ] `flutter analyze` clean
+
+### Phase 6E — Accurate Progress & ETA 🔴 Not Started
+
+**Goal:** Real progress reporting and estimated time for all conversions.
+
+- [ ] FFmpeg tools: real % via `statistics.getTime() / totalDuration * 100`
+- [ ] FFmpeg ETA: hidden for first 3 seconds, then `remaining / throughput`
+- [ ] Show elapsed time alongside ETA
+- [ ] Gradio tools: stage labels ("Uploading…" → "Processing…" → "Finalizing…")
+- [ ] Gradio: elapsed time only, no ETA, no fake progress bar
+- [ ] Cancel: FFmpeg `FFmpegKit.cancel()` + cleanup + remove pending MediaStore entry
+- [ ] Cancel: Gradio — cancel Dio request + cleanup
+- [ ] After cancel: status "Cancelled" in history, no output file
+- [ ] `flutter analyze` clean
+
+### Phase 6F — Permissions Onboarding 🔴 Not Started
+
+**Goal:** First-launch screen explaining and requesting permissions.
+
+- [ ] Create `onboarding_screen.dart` — shown once before home screen
+- [ ] Dismiss state persisted to SharedPreferences
+- [ ] Request `MANAGE_MEDIA` (API 31+) — "rename and delete converted files"
+- [ ] Request `POST_NOTIFICATIONS` (API 33+) — "notify when conversion finishes"
+- [ ] App works without permissions; inline warning when denied feature is used
+- [ ] Permissions can be re-requested from Settings tab
+- [ ] `flutter analyze` clean
 
 ---
 
@@ -288,13 +382,11 @@ unit — a separate iOS ad unit must be created before App Store submission (Pha
 
 ## Phase 4 — v1.1 / v2 Features
 
-**Status:** Future — requires Phase 5 + Phase 1–3 stable
+**Status:** Future — requires Phase 6 + Phase 1–3 stable
 
 - Custom LUT import (.cube) for Video Compression
 - Batch conversion for media tools
 - Drag-to-reorder in Image to PDF
-- Conversion history log (local)
-- Dark mode
 - Background task processing (conversion continues when app is backgrounded)
 - Split PDF by blank page detection
 - OCR (scanned PDF to searchable text)

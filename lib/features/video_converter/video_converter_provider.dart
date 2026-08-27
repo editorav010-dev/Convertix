@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/conversion_result.dart';
 import '../../core/services/ffmpeg_service.dart';
 import '../../core/services/file_service.dart';
+import '../../core/services/output_location_service.dart';
 import '../media_tools/media_conversion_utils.dart';
 
 class VideoConverterConfig {
@@ -26,9 +27,10 @@ class VideoConverterNotifier extends AsyncNotifier<ConversionResult?> {
   Future<void> convert({
     required File inputFile,
     required VideoConverterConfig config,
+    void Function(double, [String?])? onProgress,
   }) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() => _run(inputFile, config));
+    state = await AsyncValue.guard(() => _run(inputFile, config, onProgress));
   }
 
   void cancel() {
@@ -39,7 +41,7 @@ class VideoConverterNotifier extends AsyncNotifier<ConversionResult?> {
     state = const AsyncData(null);
   }
 
-  Future<ConversionResult> _run(File inputFile, VideoConverterConfig config) async {
+  Future<ConversionResult> _run(File inputFile, VideoConverterConfig config, void Function(double, [String?])? onProgress) async {
     final jobId = uuid.v4();
     _activeJobId = jobId;
 
@@ -53,9 +55,12 @@ class VideoConverterNotifier extends AsyncNotifier<ConversionResult?> {
 
     try {
       return await ffmpegService.execute(
+        tool: ConvertixTool.videoConverter,
+        sourcePath: inputFile.path,
         command: command,
         jobId: jobId,
         outputPath: outputPath,
+        onProgress: onProgress,
       );
     } finally {
       if (_activeJobId == jobId) {

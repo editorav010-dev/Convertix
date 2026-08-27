@@ -1,4 +1,3 @@
-import '../../../shared/constants/format_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,7 +16,8 @@ class VideoCompressionScreen extends ConsumerWidget {
     return MediaToolScreen(
       title: 'Video Compression',
       inputLabel: 'Select Video',
-      allowedExtensions: videoInputFormats,
+      
+      toolName: 'video_compression',
       outputFormats: const ['mp4'],
       initialOutputFormat: 'mp4',
       conversionState: state,
@@ -28,7 +28,7 @@ class VideoCompressionScreen extends ConsumerWidget {
       logProfileOptions: logProfiles
           .map((profile) => LabelledOption<String>(profile.id, profile.displayName))
           .toList(),
-      onConvert: (inputFile, settings) => notifier.convert(
+      onConvert: (inputFile, settings, onProgress) => notifier.convert(
         inputFile: inputFile,
         config: VideoCompressionConfig(
           videoCodec: settings.videoCodec,
@@ -36,6 +36,7 @@ class VideoCompressionScreen extends ConsumerWidget {
           resolution: settings.resolution,
           logProfileId: settings.logProfileId,
         ),
+        onProgress: onProgress,
       ),
       onCancel: notifier.cancel,
     );

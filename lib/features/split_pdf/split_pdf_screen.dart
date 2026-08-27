@@ -19,6 +19,8 @@ class SplitPdfScreen extends ConsumerStatefulWidget {
 class _SplitPdfScreenState extends ConsumerState<SplitPdfScreen> {
   String? _inputPath;
   int _splitBy = 1;
+  double _progress = 0.0;
+  String? _stageLabel;
 
   void _onFilePicked(String path) {
     setState(() {
@@ -46,7 +48,8 @@ class _SplitPdfScreenState extends ConsumerState<SplitPdfScreen> {
                   FilePickerButton(
                     label: 'Select PDF',
                     icon: LucideIcons.fileText,
-                    allowedExtensions: const ['pdf'],
+                    
+                    toolName: 'split_pdf',
                     onFilePicked: _onFilePicked,
                   ),
                   if (_inputPath != null) ...[
@@ -77,9 +80,21 @@ class _SplitPdfScreenState extends ConsumerState<SplitPdfScreen> {
                       onPressed: isConverting
                           ? null
                           : () {
+                              setState(() {
+                                _progress = 0.05;
+                                _stageLabel = 'Starting...';
+                              });
                               ref.read(splitPdfProvider.notifier).convert(
                                     inputPath: _inputPath!,
                                     splitBy: _splitBy,
+                                    onProgress: (progress, [stageLabel]) {
+                                      if (mounted) {
+                                        setState(() {
+                                          _progress = progress;
+                                          if (stageLabel != null) _stageLabel = stageLabel;
+                                        });
+                                      }
+                                    },
                                   );
                             },
                       icon: isConverting
@@ -103,6 +118,9 @@ class _SplitPdfScreenState extends ConsumerState<SplitPdfScreen> {
                         fileName: result.outputPath.split('/').last,
                         fileSizeBytes: result.fileSizeBytes,
                         outputPath: result.outputPath,
+                        contentUri: result.contentUri,
+                        displayLocation: result.displayLocation,
+                        isFolderOutput: result.isFolderOutput,
                         onConvertAnother: () {
                           setState(() => _inputPath = null);
                           ref.read(splitPdfProvider.notifier).cancel();
@@ -118,7 +136,11 @@ class _SplitPdfScreenState extends ConsumerState<SplitPdfScreen> {
                             );
                       },
                     ),
-                    loading: () => const ConversionProgress(state: ConversionProgressState.loading),
+                    loading: () => ConversionProgress(
+                      state: ConversionProgressState.loading,
+                      progress: _progress,
+                      stageLabel: _stageLabel,
+                    ),
                   ),
                 ],
               ),

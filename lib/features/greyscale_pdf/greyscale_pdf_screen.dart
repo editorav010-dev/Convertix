@@ -17,6 +17,8 @@ class GreyscalePdfScreen extends ConsumerStatefulWidget {
 
 class _GreyscalePdfScreenState extends ConsumerState<GreyscalePdfScreen> {
   String? _inputPath;
+  double _progress = 0.0;
+  String? _stageLabel;
 
   void _onFilePicked(String path) {
     setState(() {
@@ -44,7 +46,8 @@ class _GreyscalePdfScreenState extends ConsumerState<GreyscalePdfScreen> {
                   FilePickerButton(
                     label: 'Select PDF File',
                     icon: LucideIcons.fileText,
-                    allowedExtensions: const ['pdf'],
+                    
+                    toolName: 'greyscale_pdf',
                     onFilePicked: _onFilePicked,
                   ),
                   if (_inputPath != null) ...[
@@ -53,8 +56,20 @@ class _GreyscalePdfScreenState extends ConsumerState<GreyscalePdfScreen> {
                       onPressed: isConverting
                           ? null
                           : () {
+                              setState(() {
+                                _progress = 0.05;
+                                _stageLabel = 'Starting...';
+                              });
                               ref.read(greyscalePdfProvider.notifier).convert(
                                     inputPath: _inputPath!,
+                                    onProgress: (progress, [stageLabel]) {
+                                      if (mounted) {
+                                        setState(() {
+                                          _progress = progress;
+                                          if (stageLabel != null) _stageLabel = stageLabel;
+                                        });
+                                      }
+                                    },
                                   );
                             },
                       icon: isConverting
@@ -78,6 +93,8 @@ class _GreyscalePdfScreenState extends ConsumerState<GreyscalePdfScreen> {
                         fileName: result.outputPath.split('/').last,
                         fileSizeBytes: result.fileSizeBytes,
                         outputPath: result.outputPath,
+                        contentUri: result.contentUri,
+                        displayLocation: result.displayLocation,
                         onConvertAnother: () {
                           setState(() => _inputPath = null);
                           ref.read(greyscalePdfProvider.notifier).cancel();
@@ -92,7 +109,11 @@ class _GreyscalePdfScreenState extends ConsumerState<GreyscalePdfScreen> {
                             );
                       },
                     ),
-                    loading: () => const ConversionProgress(state: ConversionProgressState.loading),
+                    loading: () => ConversionProgress(
+                      state: ConversionProgressState.loading,
+                      progress: _progress,
+                      stageLabel: _stageLabel,
+                    ),
                   ),
                 ],
               ),

@@ -69,6 +69,14 @@ class HomeScreen extends StatelessWidget {
         centerTitle: true,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
+        actions: [
+          IconButton(
+            icon: const Icon(LucideIcons.settings),
+            onPressed: () => context.push('/settings'),
+            tooltip: 'Settings',
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),

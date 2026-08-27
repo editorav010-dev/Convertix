@@ -2,9 +2,7 @@ import '../../../shared/constants/format_constants.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:open_file/open_file.dart';
 import 'package:path/path.dart' as p;
-import 'package:share_plus/share_plus.dart';
 
 import '../../core/models/conversion_result.dart';
 import '../../core/widgets/banner_ad_widget.dart';
@@ -41,11 +39,15 @@ class MediaToolSettings {
 class MediaToolScreen extends StatefulWidget {
   final String title;
   final String inputLabel;
-  final List<String> allowedExtensions;
+  final String toolName;
   final List<String> outputFormats;
   final String initialOutputFormat;
   final AsyncValue<ConversionResult?> conversionState;
-  final Future<void> Function(File inputFile, MediaToolSettings settings) onConvert;
+  final Future<void> Function(
+    File,
+    MediaToolSettings,
+    void Function(double progress, [String? stageLabel]),
+  ) onConvert;
   final VoidCallback onCancel;
   final bool showImageQuality;
   final bool showAudioBitrate;
@@ -60,7 +62,7 @@ class MediaToolScreen extends StatefulWidget {
     super.key,
     required this.title,
     required this.inputLabel,
-    required this.allowedExtensions,
+    required this.toolName,
     required this.outputFormats,
     required this.initialOutputFormat,
     required this.conversionState,
@@ -90,6 +92,9 @@ class _MediaToolScreenState extends State<MediaToolScreen> {
   String _compressionQuality = 'balanced';
   String _logProfileId = 'standard';
 
+  double _progress = 0.0;
+  String? _stageLabel;
+
   @override
   void initState() {
     super.initState();
@@ -114,7 +119,7 @@ class _MediaToolScreenState extends State<MediaToolScreen> {
                 padding: const EdgeInsets.all(16),
                 children: [
                   FilePickerButton(
-                    allowedExtensions: widget.allowedExtensions,
+                    toolName: widget.toolName,
                     label: widget.inputLabel,
                     onFilePicked: (path) {
                       setState(() => _selectedFile = File(path));
@@ -220,6 +225,11 @@ class _MediaToolScreenState extends State<MediaToolScreen> {
     final selectedFile = _selectedFile;
     if (selectedFile == null) return;
 
+    setState(() {
+      _progress = 0.05;
+      _stageLabel = 'Converting...';
+    });
+
     await widget.onConvert(
       selectedFile,
       MediaToolSettings(
@@ -231,6 +241,14 @@ class _MediaToolScreenState extends State<MediaToolScreen> {
         compressionQuality: _compressionQuality,
         logProfileId: _logProfileId,
       ),
+      (progress, [stageLabel]) {
+        if (mounted) {
+          setState(() {
+            _progress = progress;
+            if (stageLabel != null) _stageLabel = stageLabel;
+          });
+        }
+      },
     );
   }
 
@@ -238,7 +256,8 @@ class _MediaToolScreenState extends State<MediaToolScreen> {
     if (isLoading) {
       return ConversionProgress(
         state: ConversionProgressState.loading,
-        progress: 0.2,
+        progress: _progress,
+        stageLabel: _stageLabel,
         onCancel: widget.onCancel,
       );
     }
@@ -259,11 +278,9 @@ class _MediaToolScreenState extends State<MediaToolScreen> {
       state: ConversionProgressState.success,
       fileName: p.basename(result.outputPath),
       fileSizeBytes: result.fileSizeBytes,
-      onOpenFile: () => OpenFile.open(result.outputPath),
-      onShare: () => Share.shareXFiles(
-        [XFile(result.outputPath)],
-        text: 'Converted with Convertix',
-      ),
+      outputPath: result.outputPath,
+      contentUri: result.contentUri,
+      displayLocation: result.displayLocation,
       onConvertAnother: () {
         setState(() => _selectedFile = null);
       },

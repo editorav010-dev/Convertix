@@ -7,7 +7,8 @@ Phase 2A — COMPLETED ✅ (Backend Deployment)
 Phase 2B — COMPLETED ✅ (Document Tools — all 5 verified on device)
 Phase 5A — COMPLETED ✅ (Output Location Architecture — infrastructure only, not yet wired to tools)
 Phase 5B — COMPLETED ✅ (Shared File-Source Selection — live in all 10 tools)
-Phase 5 — IN PROGRESS 🟡 (Product Polish, Shared UX & Output Structure) ← **next: 5C**
+Phase 6B — COMPLETED ✅ (Native Android Intent Resolver via ACTION_GET_CONTENT + createChooser + Per-Tool Memory)
+Phase 5 — IN PROGRESS 🟡 (Product Polish, Shared UX & Output Structure) ← **next: 5C / 6C**
 
 **Phase 5 is scheduled before Phase 3.** The storage change is user-visible behaviour that should ship
 in the v1.0.9 submission, and Phase 3 is blocked on the Play upload-key reset (not yet requested), so
@@ -84,7 +85,8 @@ Two things were learned the hard way during that migration — see "Backend Fact
 | 2026-08-23 | Phase 5 **scheduled before Phase 3**; Phase 4 now requires Phase 5 | Storage behaviour should ship in the v1.0.9 submission; Phase 3 is blocked on the upload-key reset anyway |
 | 2026-08-23 | Open questions **#1 and #3 resolved** — Kotlin platform channel; content-type-explicit folder names | 5A is unblocked and ready to plan |
 | 2026-08-23 | **5A complete** — MediaStore output layer built (not yet wired to tools) | Storage architecture in place for 5D/5F |
-| 2026-08-23 | **5B complete** — file-source selection live in all 10 tools; open questions **#4 and #5 resolved** | Picker enumeration works; permission-free property preserved |
+| 2026-08-23 | **5B complete** — file-source selection live in all 10 tools; open questions **#4 and **5 resolved** | Picker enumeration works; permission-free property preserved |
+| 2026-08-27 | **6B complete** — Kotlin BottomSheetDialog rejected | Switched to native Android System Intent Resolver + per-tool memory; Phase 5C per-category preference is superseded by new per-tool system |
 
 ---
 

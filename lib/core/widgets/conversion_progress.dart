@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:open_file/open_file.dart';
+import 'package:share_plus/share_plus.dart';
+
+import '../services/output_location_service.dart';
 
 enum ConversionProgressState {
   idle,
@@ -10,8 +15,11 @@ enum ConversionProgressState {
 class ConversionProgress extends StatefulWidget {
   final ConversionProgressState state;
   final double progress;
+  final String? stageLabel;
   final String? errorMessage;
   final String? outputPath;
+  final String? contentUri;
+  final String? displayLocation;
   final String? fileName;
   final int? fileSizeBytes;
   final VoidCallback? onCancel;
@@ -19,13 +27,17 @@ class ConversionProgress extends StatefulWidget {
   final VoidCallback? onOpenFile;
   final VoidCallback? onShare;
   final VoidCallback? onConvertAnother;
+  final bool isFolderOutput;
 
   const ConversionProgress({
     super.key,
     required this.state,
     this.progress = 0.0,
+    this.stageLabel,
     this.errorMessage,
     this.outputPath,
+    this.contentUri,
+    this.displayLocation,
     this.fileName,
     this.fileSizeBytes,
     this.onCancel,
@@ -33,6 +45,7 @@ class ConversionProgress extends StatefulWidget {
     this.onOpenFile,
     this.onShare,
     this.onConvertAnother,
+    this.isFolderOutput = false,
   });
 
   @override
@@ -179,7 +192,7 @@ class _ConversionProgressState extends State<ConversionProgress>
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Converting...',
+                    widget.stageLabel ?? 'Converting...',
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: colorScheme.onPrimaryContainer,
                       fontWeight: FontWeight.w600,
@@ -266,39 +279,107 @@ class _ConversionProgressState extends State<ConversionProgress>
               ],
             ),
             const SizedBox(height: 16),
-            if (widget.fileName != null) ...[
-              Text(
-                widget.fileName!,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onTertiaryContainer,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-            ],
-            if (widget.fileSizeBytes != null) ...[
-              Text(
-                'Size: ${_formatFileSize(widget.fileSizeBytes!)}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onTertiaryContainer.withValues(alpha: 0.7),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: colorScheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: colorScheme.outline.withValues(alpha: 0.2),
                 ),
               ),
-              const SizedBox(height: 16),
-            ],
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.description_outlined,
+                    color: colorScheme.onSurfaceVariant,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.fileName ?? 'Result',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurface,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          widget.displayLocation ?? 
+                              (widget.fileSizeBytes != null ? 'Size: ${_formatFileSize(widget.fileSizeBytes!)}' : ''),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
             Wrap(
               spacing: 12,
               runSpacing: 12,
               children: [
-                if (widget.onOpenFile != null)
+                if (widget.onOpenFile != null || widget.outputPath != null || widget.contentUri != null)
                   FilledButton.icon(
-                    onPressed: widget.onOpenFile,
+                    onPressed: widget.onOpenFile ??
+                        () async {
+                          final path = widget.contentUri ?? widget.outputPath;
+                          if (path != null) await OpenFile.open(path);
+                        },
                     icon: const Icon(Icons.open_in_new, size: 20),
                     label: const Text('Open File'),
                   ),
-                if (widget.onShare != null)
+                if (widget.displayLocation != null || widget.outputPath != null)
                   OutlinedButton.icon(
-                    onPressed: widget.onShare,
+                    onPressed: () async {
+                      if (widget.displayLocation != null) {
+                        try {
+                          final p = widget.displayLocation!;
+                          final lastSlash = p.lastIndexOf('/');
+                          final relativeDir = (widget.isFolderOutput || lastSlash == -1) 
+                              ? p 
+                              : p.substring(0, lastSlash);
+                          await outputLocationService.showInFolder(relativeDir);
+                          return;
+                        } catch (e) {
+                          // Fallback to clipboard if intent fails
+                        }
+                      }
+                      
+                      final textToCopy = widget.displayLocation ?? widget.outputPath!;
+                      Clipboard.setData(ClipboardData(text: textToCopy));
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Saved location copied to clipboard:\n$textToCopy'),
+                          duration: const Duration(seconds: 3),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.folder_outlined, size: 20),
+                    label: const Text('Show in Folder'),
+                  ),
+                if (widget.onShare != null || widget.outputPath != null || widget.contentUri != null)
+                  OutlinedButton.icon(
+                    onPressed: widget.onShare ??
+                        () async {
+                          final path = widget.outputPath ?? widget.contentUri;
+                          if (path != null) {
+                            await Share.shareXFiles(
+                              [XFile(path)],
+                              text: 'Converted with Convertix',
+                            );
+                          }
+                        },
                     icon: const Icon(Icons.share, size: 20),
                     label: const Text('Share'),
                   ),

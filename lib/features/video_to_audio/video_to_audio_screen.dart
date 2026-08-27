@@ -16,18 +16,20 @@ class VideoToAudioScreen extends ConsumerWidget {
     return MediaToolScreen(
       title: 'Video to Audio',
       inputLabel: 'Select Video',
-      allowedExtensions: videoInputFormats,
+      
+      toolName: 'video_to_audio',
       outputFormats: videoToAudioOutputFormats,
       initialOutputFormat: videoToAudioOutputFormats.first,
       conversionState: state,
       showAudioBitrate: true,
       hideBitrateForLossless: true,
-      onConvert: (inputFile, settings) => notifier.convert(
+      onConvert: (inputFile, settings, onProgress) => notifier.convert(
         inputFile: inputFile,
         config: VideoToAudioConfig(
           outputFormat: settings.outputFormat,
           bitrateKbps: settings.bitrateKbps,
         ),
+        onProgress: onProgress,
       ),
       onCancel: notifier.cancel,
     );

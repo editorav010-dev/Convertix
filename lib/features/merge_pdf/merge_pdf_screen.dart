@@ -17,6 +17,8 @@ class MergePdfScreen extends ConsumerStatefulWidget {
 
 class _MergePdfScreenState extends ConsumerState<MergePdfScreen> {
   List<String> _inputPaths = [];
+  double _progress = 0.0;
+  String? _stageLabel;
 
   void _onFilesPicked(List<String> paths) {
     setState(() {
@@ -44,7 +46,8 @@ class _MergePdfScreenState extends ConsumerState<MergePdfScreen> {
                   FilePickerButton(
                     label: 'Select PDFs',
                     icon: LucideIcons.files,
-                    allowedExtensions: const ['pdf'],
+                    
+                    toolName: 'merge_pdf',
                     allowMultiple: true,
                     onFilesPicked: _onFilesPicked,
                   ),
@@ -60,8 +63,20 @@ class _MergePdfScreenState extends ConsumerState<MergePdfScreen> {
                       onPressed: isConverting || _inputPaths.length < 2
                           ? null
                           : () {
+                              setState(() {
+                                _progress = 0.05;
+                                _stageLabel = 'Starting...';
+                              });
                               ref.read(mergePdfProvider.notifier).convert(
                                     inputPaths: _inputPaths,
+                                    onProgress: (progress, [stageLabel]) {
+                                      if (mounted) {
+                                        setState(() {
+                                          _progress = progress;
+                                          if (stageLabel != null) _stageLabel = stageLabel;
+                                        });
+                                      }
+                                    },
                                   );
                             },
                       icon: isConverting
@@ -96,6 +111,8 @@ class _MergePdfScreenState extends ConsumerState<MergePdfScreen> {
                         fileName: result.outputPath.split('/').last,
                         fileSizeBytes: result.fileSizeBytes,
                         outputPath: result.outputPath,
+                        contentUri: result.contentUri,
+                        displayLocation: result.displayLocation,
                         onConvertAnother: () {
                           setState(() => _inputPaths = []);
                           ref.read(mergePdfProvider.notifier).cancel();
@@ -110,7 +127,11 @@ class _MergePdfScreenState extends ConsumerState<MergePdfScreen> {
                             );
                       },
                     ),
-                    loading: () => const ConversionProgress(state: ConversionProgressState.loading),
+                    loading: () => ConversionProgress(
+                      state: ConversionProgressState.loading,
+                      progress: _progress,
+                      stageLabel: _stageLabel,
+                    ),
                   ),
                 ],
               ),

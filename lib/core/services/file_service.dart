@@ -41,10 +41,9 @@ class FileService {
   }
 
   String buildOutputPath(String inputName, String targetExt) {
-    final baseName = path.basenameWithoutExtension(inputName);
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    return '${baseName}_$timestamp.$targetExt';
-  }
+      final baseName = path.basenameWithoutExtension(inputName);
+      return '${baseName}_convertix.$targetExt';
+    }
 
   Future<void> cleanTempForJob(String jobId) async {
     final tempDir = await getTempDir();

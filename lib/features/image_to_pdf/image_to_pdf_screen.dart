@@ -1,4 +1,3 @@
-import '../../../shared/constants/format_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -18,6 +17,8 @@ class ImageToPdfScreen extends ConsumerStatefulWidget {
 
 class _ImageToPdfScreenState extends ConsumerState<ImageToPdfScreen> {
   List<String> _inputPaths = [];
+  double _progress = 0.0;
+  String? _stageLabel;
 
   void _onFilesPicked(List<String> paths) {
     setState(() {
@@ -45,7 +46,8 @@ class _ImageToPdfScreenState extends ConsumerState<ImageToPdfScreen> {
                   FilePickerButton(
                     label: 'Select Images',
                     icon: LucideIcons.image,
-                    allowedExtensions: imageInputFormats,
+                    
+                    toolName: 'image_to_pdf',
                     allowMultiple: true,
                     onFilesPicked: _onFilesPicked,
                   ),
@@ -61,8 +63,20 @@ class _ImageToPdfScreenState extends ConsumerState<ImageToPdfScreen> {
                       onPressed: isConverting
                           ? null
                           : () {
+                              setState(() {
+                                _progress = 0.05;
+                                _stageLabel = 'Starting...';
+                              });
                               ref.read(imageToPdfProvider.notifier).convert(
                                     inputPaths: _inputPaths,
+                                    onProgress: (progress, [stageLabel]) {
+                                      if (mounted) {
+                                        setState(() {
+                                          _progress = progress;
+                                          if (stageLabel != null) _stageLabel = stageLabel;
+                                        });
+                                      }
+                                    },
                                   );
                             },
                       icon: isConverting
@@ -86,6 +100,8 @@ class _ImageToPdfScreenState extends ConsumerState<ImageToPdfScreen> {
                         fileName: result.outputPath.split('/').last,
                         fileSizeBytes: result.fileSizeBytes,
                         outputPath: result.outputPath,
+                        contentUri: result.contentUri,
+                        displayLocation: result.displayLocation,
                         onConvertAnother: () {
                           setState(() => _inputPaths = []);
                           ref.read(imageToPdfProvider.notifier).cancel();
@@ -100,7 +116,11 @@ class _ImageToPdfScreenState extends ConsumerState<ImageToPdfScreen> {
                             );
                       },
                     ),
-                    loading: () => const ConversionProgress(state: ConversionProgressState.loading),
+                    loading: () => ConversionProgress(
+                      state: ConversionProgressState.loading,
+                      progress: _progress,
+                      stageLabel: _stageLabel,
+                    ),
                   ),
                 ],
               ),

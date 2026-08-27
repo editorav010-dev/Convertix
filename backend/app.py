@@ -39,6 +39,8 @@ def run_libreoffice_conversion(input_path: str, output_dir: str, output_format: 
         if os.path.exists(expected_output):
             return expected_output
             
+
+
         for file in os.listdir(output_dir):
             if file.endswith(f".{output_format}"):
                 return os.path.join(output_dir, file)

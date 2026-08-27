@@ -18,6 +18,8 @@ class DocumentConvertScreen extends ConsumerStatefulWidget {
 class _DocumentConvertScreenState extends ConsumerState<DocumentConvertScreen> {
   String? _inputPath;
   String _targetFormat = 'pdf';
+  double _progress = 0.0;
+  String? _stageLabel;
 
   void _onFilePicked(String path) {
     setState(() {
@@ -47,7 +49,7 @@ class _DocumentConvertScreenState extends ConsumerState<DocumentConvertScreen> {
                   FilePickerButton(
                     label: 'Select Document',
                     icon: LucideIcons.fileText,
-                    allowedExtensions: documentFormats.where((f) => f != 'pdf').toList(),
+                    toolName: 'document_convert',
                     onFilePicked: _onFilePicked,
                   ),
                   if (_inputPath != null) ...[
@@ -80,9 +82,21 @@ class _DocumentConvertScreenState extends ConsumerState<DocumentConvertScreen> {
                       onPressed: isConverting
                           ? null
                           : () {
+                              setState(() {
+                                _progress = 0.05;
+                                _stageLabel = 'Starting...';
+                              });
                               ref.read(documentConvertProvider.notifier).convert(
                                     inputPath: _inputPath!,
                                     targetFormat: _targetFormat,
+                                    onProgress: (progress, [stageLabel]) {
+                                      if (mounted) {
+                                        setState(() {
+                                          _progress = progress;
+                                          if (stageLabel != null) _stageLabel = stageLabel;
+                                        });
+                                      }
+                                    },
                                   );
                             },
                       icon: isConverting
@@ -106,6 +120,8 @@ class _DocumentConvertScreenState extends ConsumerState<DocumentConvertScreen> {
                         fileName: result.outputPath.split('/').last,
                         fileSizeBytes: result.fileSizeBytes,
                         outputPath: result.outputPath,
+                        contentUri: result.contentUri,
+                        displayLocation: result.displayLocation,
                         onConvertAnother: () {
                           setState(() => _inputPath = null);
                           ref.read(documentConvertProvider.notifier).cancel();
@@ -121,7 +137,11 @@ class _DocumentConvertScreenState extends ConsumerState<DocumentConvertScreen> {
                             );
                       },
                     ),
-                    loading: () => const ConversionProgress(state: ConversionProgressState.loading),
+                    loading: () => ConversionProgress(
+                      state: ConversionProgressState.loading,
+                      progress: _progress,
+                      stageLabel: _stageLabel,
+                    ),
                   ),
                 ],
               ),

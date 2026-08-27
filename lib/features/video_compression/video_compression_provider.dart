@@ -2,9 +2,10 @@ import 'dart:io';
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/models/conversion_result.dart';
-import '../../core/services/ffmpeg_service.dart';
-import '../../core/services/file_service.dart';
+import '../../../core/models/conversion_result.dart';
+import '../../../core/services/ffmpeg_service.dart';
+import '../../../core/services/file_service.dart';
+import '../../../core/services/output_location_service.dart';
 import '../media_tools/media_conversion_utils.dart';
 import 'log_profiles.dart';
 
@@ -61,9 +62,10 @@ class VideoCompressionNotifier extends AsyncNotifier<ConversionResult?> {
   Future<void> convert({
     required File inputFile,
     required VideoCompressionConfig config,
+    void Function(double, [String?])? onProgress,
   }) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() => _run(inputFile, config));
+    state = await AsyncValue.guard(() => _run(inputFile, config, onProgress));
   }
 
   void cancel() {
@@ -74,7 +76,7 @@ class VideoCompressionNotifier extends AsyncNotifier<ConversionResult?> {
     state = const AsyncData(null);
   }
 
-  Future<ConversionResult> _run(File inputFile, VideoCompressionConfig config) async {
+  Future<ConversionResult> _run(File inputFile, VideoCompressionConfig config, void Function(double, [String?])? onProgress) async {
     final jobId = uuid.v4();
     _activeJobId = jobId;
 
@@ -94,9 +96,12 @@ class VideoCompressionNotifier extends AsyncNotifier<ConversionResult?> {
 
     try {
       return await ffmpegService.execute(
+        tool: ConvertixTool.videoCompression,
+        sourcePath: inputFile.path,
         command: command,
         jobId: jobId,
         outputPath: outputPath,
+        onProgress: onProgress,
       );
     } finally {
       if (_activeJobId == jobId) {

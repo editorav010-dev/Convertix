@@ -16,18 +16,19 @@ class AudioConverterScreen extends ConsumerWidget {
     return MediaToolScreen(
       title: 'Audio Converter',
       inputLabel: 'Select Audio',
-      allowedExtensions: audioInputFormats,
+      toolName: 'audio_converter',
       outputFormats: audioOutputFormats,
       initialOutputFormat: audioOutputFormats.first,
       conversionState: state,
       showAudioBitrate: true,
       hideBitrateForLossless: true,
-      onConvert: (inputFile, settings) => notifier.convert(
+      onConvert: (inputFile, settings, onProgress) => notifier.convert(
         inputFile: inputFile,
         config: AudioConverterConfig(
           outputFormat: settings.outputFormat,
           bitrateKbps: settings.bitrateKbps,
         ),
+        onProgress: onProgress,
       ),
       onCancel: notifier.cancel,
     );

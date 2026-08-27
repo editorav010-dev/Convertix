@@ -16,17 +16,19 @@ class ImageConverterScreen extends ConsumerWidget {
     return MediaToolScreen(
       title: 'Image Converter',
       inputLabel: 'Select Image',
-      allowedExtensions: imageInputFormats,
+      
+      toolName: 'image_converter',
       outputFormats: imageOutputFormats,
       initialOutputFormat: imageOutputFormats.first,
       conversionState: state,
       showImageQuality: true,
-      onConvert: (inputFile, settings) => notifier.convert(
+      onConvert: (inputFile, settings, onProgress) => notifier.convert(
         inputFile: inputFile,
         config: ImageConverterConfig(
           outputFormat: settings.outputFormat,
           quality: settings.quality,
         ),
+        onProgress: onProgress,
       ),
       onCancel: notifier.cancel,
     );

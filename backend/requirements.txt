@@ -1,4 +1,19 @@
-gradio==4.44.1
-gradio_client==1.3.0
-huggingface_hub==0.24.7
+# Pinned to mirror the DEPLOYED Space exactly:
+#   pandeypratham/libreoffice-converter  (sdk: docker, cpu-basic)
+# Verified live: GET /config -> "version": "4.36.0"
+#
+# Do NOT bump gradio here casually. The Flutter client tolerates either Gradio
+# major (it auto-detects the /gradio_api prefix), but Gradio 4.36 has a known
+# quirk the client depends on: see backend_service._downloadResult.
+#
+# jinja2 and starlette are pinned to avoid a template cache crash on 4.36.
+# fastapi/pydantic/gradio_client/huggingface_hub are pinned because 4.36 is old
+# enough that free resolution pulls incompatible majors.
+jinja2==3.1.4
+starlette==0.37.2
+gradio==4.36.0
+gradio_client==1.0.1
+huggingface_hub==0.23.5
 pymupdf==1.24.11
+fastapi==0.111.0
+pydantic==2.7.4

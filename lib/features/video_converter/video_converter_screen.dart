@@ -16,17 +16,18 @@ class VideoConverterScreen extends ConsumerWidget {
     return MediaToolScreen(
       title: 'Video Converter',
       inputLabel: 'Select Video',
-      allowedExtensions: videoInputFormats,
+      toolName: 'video_converter',
       outputFormats: videoOutputFormats,
       initialOutputFormat: videoOutputFormats.first,
       conversionState: state,
       showResolution: true,
-      onConvert: (inputFile, settings) => notifier.convert(
+      onConvert: (inputFile, settings, onProgress) => notifier.convert(
         inputFile: inputFile,
         config: VideoConverterConfig(
           outputFormat: settings.outputFormat,
           resolution: settings.resolution,
         ),
+        onProgress: onProgress,
       ),
       onCancel: notifier.cancel,
     );

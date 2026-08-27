@@ -11,6 +11,7 @@ import '../features/greyscale_pdf/greyscale_pdf_screen.dart';
 import '../features/merge_pdf/merge_pdf_screen.dart';
 import '../features/split_pdf/split_pdf_screen.dart';
 import '../features/settings/licenses_screen.dart';
+import '../features/settings/settings_screen.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
@@ -74,6 +75,11 @@ final GoRouter appRouter = GoRouter(
       path: '/licenses',
       name: 'licenses',
       builder: (context, state) => const LicensesScreen(),
+    ),
+    GoRoute(
+      path: '/settings',
+      name: 'settings',
+      builder: (context, state) => const SettingsScreen(),
     ),
   ],
 );
