@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:archive/archive.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import '../../../core/models/conversion_result.dart';
@@ -13,6 +14,8 @@ final splitPdfProvider = AsyncNotifierProvider<SplitPdfNotifier, ConversionResul
 });
 
 class SplitPdfNotifier extends AsyncNotifier<ConversionResult?> {
+  CancelToken? _cancelToken;
+
   @override
   Future<ConversionResult?> build() async => null;
 
@@ -22,6 +25,7 @@ class SplitPdfNotifier extends AsyncNotifier<ConversionResult?> {
     void Function(double progress, [String? stageLabel])? onProgress,
   }) async {
     state = const AsyncLoading();
+    _cancelToken = CancelToken();
     final historyService = ref.read(historyServiceProvider);
     state = await AsyncValue.guard(() => historyService.runTaskWithHistory(
       inputFilename: inputPath.split(RegExp(r'[\\/]')).last,
@@ -41,11 +45,16 @@ class SplitPdfNotifier extends AsyncNotifier<ConversionResult?> {
           outputPath: outputPath,
           outputFilename: outputName,
           onProgress: onProgress,
+          cancelToken: _cancelToken,
           skipPublish: true, // We will extract and publish the PDFs ourselves
         );
         
-        if (!result.success) {
+        if (!result.success && !result.isCancelled) {
           throw Exception(result.errorMessage ?? 'Split failed');
+        }
+        
+        if (result.isCancelled) {
+          return null;
         }
         
         onProgress?.call(0.96, 'Extracting PDF pages...');
@@ -136,6 +145,7 @@ class SplitPdfNotifier extends AsyncNotifier<ConversionResult?> {
   }
 
   void cancel() {
+    _cancelToken?.cancel('User cancelled');
     state = const AsyncData(null);
   }
 }

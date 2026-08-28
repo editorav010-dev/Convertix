@@ -10,6 +10,7 @@ Phase 5B — COMPLETED ✅ (Shared File-Source Selection — live in all 10 tool
 Phase 6C — COMPLETED ✅ (Bottom Navigation Shell)
 Phase 6A — COMPLETED ✅ (Fix Output Naming Fallbacks - Removed timestamps, relying on sequential suffixing)
 Phase 6D — COMPLETED ✅ (Implementation of Conversion History Database - Hive DB + 10 Tool Integration)
+Phase 6E — COMPLETED ✅ (Accurate Progress, ETA & Cancellation)
 Phase 6B — ON HOLD ⏸️ (Native Android Intent Resolver via ACTION_GET_CONTENT intercepted by OS. Pending user decision on Native BottomSheet)
 Phase 5 — IN PROGRESS 🟡 (Product Polish, Shared UX & Output Structure)
 in the v1.0.9 submission, and Phase 3 is blocked on the Play upload-key reset (not yet requested), so
@@ -90,6 +91,7 @@ Two things were learned the hard way during that migration — see "Backend Fact
 | 2026-08-27 | **6C complete** — Built AppShell with BottomNavigationBar and three tabs (Home, History, Settings) | Foundation for 6D History tab and future settings tab |
 | 2026-08-27 | **6A complete** — Removed timestamp-based filename fallback in output paths | Fallback was causing bloated/inconsistent naming; sequential suffixing is more robust |
 | 2026-08-27 | **6D complete** — Hive DB setup, History models, HistoryService CRUD, UI implementation with Rename/Delete native actions, and wired up all 10 providers to log history automatically | Full history tracking implementation required before shipping |
+| 2026-08-28 | **6E complete** — Accurate Progress, ETA, & Cancellation. Wired `CancelToken` and FFmpeg session IDs. | Granular cancellation of specific tasks is required for multi-tasking and ETA UX improvements |
 
 ---
 

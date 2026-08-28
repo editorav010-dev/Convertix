@@ -12,6 +12,9 @@ class ConversionResult {
   /// A human-readable relative path, e.g. `DCIM/Images (Convertix)/photo.webp`.
   final String? displayLocation;
   
+  /// True if the conversion was cancelled by the user.
+  final bool isCancelled;
+  
   /// True if the file was written to a public collection (e.g. Gallery).
   final bool isPublic;
 
@@ -39,6 +42,7 @@ class ConversionResult {
     this.contentUri,
     this.displayLocation,
     this.isPublic = false,
+    this.isCancelled = false,
     this.isFolderOutput = false,
     this.folderRelativeDir,
     this.fileCount = 1,
@@ -78,6 +82,7 @@ class ConversionResult {
     required String errorMessage,
     int fileSizeBytes = 0,
     int durationMs = 0,
+    bool isCancelled = false,
   }) {
     return ConversionResult(
       outputPath: outputPath,
@@ -85,6 +90,7 @@ class ConversionResult {
       fileSizeBytes: fileSizeBytes,
       durationMs: durationMs,
       success: false,
+      isCancelled: isCancelled,
       errorMessage: errorMessage,
       isPublic: false,
     );

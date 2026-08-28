@@ -334,19 +334,19 @@ first-launch permissions onboarding screen.
 - [x] Clear All History button
 - [x] `flutter analyze` clean
 
-### Phase 6E — Accurate Progress & ETA 🔴 Not Started
+### Phase 6E — Accurate Progress & ETA 🟢 Completed
 
 **Goal:** Real progress reporting and estimated time for all conversions.
 
-- [ ] FFmpeg tools: real % via `statistics.getTime() / totalDuration * 100`
-- [ ] FFmpeg ETA: hidden for first 3 seconds, then `remaining / throughput`
-- [ ] Show elapsed time alongside ETA
-- [ ] Gradio tools: stage labels ("Uploading…" → "Processing…" → "Finalizing…")
-- [ ] Gradio: elapsed time only, no ETA, no fake progress bar
-- [ ] Cancel: FFmpeg `FFmpegKit.cancel()` + cleanup + remove pending MediaStore entry
-- [ ] Cancel: Gradio — cancel Dio request + cleanup
-- [ ] After cancel: status "Cancelled" in history, no output file
-- [ ] `flutter analyze` clean
+- [x] FFmpeg tools: real % via `statistics.getTime() / totalDuration * 100`
+- [x] FFmpeg ETA: hidden for first 3 seconds, then `remaining / throughput`
+- [x] Show elapsed time alongside ETA
+- [x] Gradio tools: stage labels ("Uploading…" → "Processing…" → "Finalizing…")
+- [x] Gradio: elapsed time only, no ETA, no fake progress bar
+- [x] Cancel: FFmpeg `FFmpegKit.cancel()` + cleanup + remove pending MediaStore entry
+- [x] Cancel: Gradio — cancel Dio request + cleanup
+- [x] After cancel: status "Cancelled" in history, no output file
+- [x] `flutter analyze` clean
 
 ### Phase 6F — Permissions Onboarding 🔴 Not Started
 

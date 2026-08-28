@@ -11,6 +11,8 @@ import 'file_service.dart';
 import 'output_location_service.dart';
 
 class FFmpegService {
+  final Map<String, int> _activeSessions = {};
+
   Future<ConversionResult> execute({
     required ConvertixTool tool,
     required String sourcePath,
@@ -50,16 +52,22 @@ class FFmpegService {
               if (speed > 0) {
                 final remainingMs = durationMs - time;
                 final remainingSec = (remainingMs / (speed * 1000)).round();
-                if (remainingSec > 0) {
+                
+                final elapsedSec = stopwatch.elapsed.inSeconds;
+                final elapsedStr = elapsedSec > 60 ? '${elapsedSec ~/ 60}m ${elapsedSec % 60}s' : '${elapsedSec}s';
+                
+                if (stopwatch.elapsedMilliseconds < 3000) {
+                  etaText = 'Elapsed: $elapsedStr | ETA: Calculating...';
+                } else if (remainingSec > 0) {
                   final minutes = remainingSec ~/ 60;
                   final seconds = remainingSec % 60;
                   if (minutes > 0) {
-                    etaText = 'ETA: ${minutes}m ${seconds}s';
+                    etaText = 'Elapsed: $elapsedStr | ETA: ${minutes}m ${seconds}s';
                   } else {
-                    etaText = 'ETA: ${seconds}s';
+                    etaText = 'Elapsed: $elapsedStr | ETA: ${seconds}s';
                   }
                 } else {
-                  etaText = 'Finishing up...';
+                  etaText = 'Elapsed: $elapsedStr | Finishing up...';
                 }
               }
               
@@ -68,8 +76,14 @@ class FFmpegService {
           }
         },
       );
+      
+      final sessionId = session.getSessionId();
+      if (sessionId != null) {
+        _activeSessions[jobId] = sessionId;
+      }
 
       await completer.future;
+      _activeSessions.remove(jobId);
       stopwatch.stop();
 
       final returnCode = await session.getReturnCode();
@@ -104,6 +118,7 @@ class FFmpegService {
           outputFormat: outputFormat,
           errorMessage: 'Conversion was cancelled.',
           durationMs: stopwatch.elapsedMilliseconds,
+          isCancelled: true,
         );
       }
 
@@ -115,12 +130,16 @@ class FFmpegService {
         durationMs: stopwatch.elapsedMilliseconds,
       );
     } finally {
+      _activeSessions.remove(jobId);
       await fileService.cleanTempForJob(jobId);
     }
   }
 
   Future<void> cancelSession(String jobId) async {
-    await FFmpegKit.cancel();
+    final sessionId = _activeSessions.remove(jobId);
+    if (sessionId != null) {
+      await FFmpegKit.cancel(sessionId);
+    }
     await fileService.cleanTempForJob(jobId);
   }
 

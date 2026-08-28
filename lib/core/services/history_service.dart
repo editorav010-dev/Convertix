@@ -144,6 +144,8 @@ class HistoryService {
             contentUri: result.contentUri,
             displayLocation: result.displayLocation,
           );
+        } else if (result.isCancelled) {
+          await markFailed(id: id, status: HistoryEntryStatus.cancelled);
         } else {
           await markFailed(
             id: id,

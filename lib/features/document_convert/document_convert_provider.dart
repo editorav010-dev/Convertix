@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import '../../../core/models/conversion_result.dart';
@@ -11,6 +12,8 @@ final documentConvertProvider = AsyncNotifierProvider<DocumentConvertNotifier, C
 });
 
 class DocumentConvertNotifier extends AsyncNotifier<ConversionResult?> {
+  CancelToken? _cancelToken;
+
   @override
   Future<ConversionResult?> build() async => null;
 
@@ -20,6 +23,7 @@ class DocumentConvertNotifier extends AsyncNotifier<ConversionResult?> {
     void Function(double progress, [String? stageLabel])? onProgress,
   }) async {
     state = const AsyncLoading();
+    _cancelToken = CancelToken();
     final historyService = ref.read(historyServiceProvider);
     state = await AsyncValue.guard(() => historyService.runTaskWithHistory(
       inputFilename: inputPath.split(RegExp(r'[\\/]')).last,
@@ -39,10 +43,15 @@ class DocumentConvertNotifier extends AsyncNotifier<ConversionResult?> {
           outputPath: outputPath,
           outputFilename: outputName,
           onProgress: onProgress,
+          cancelToken: _cancelToken,
         );
         
-        if (!result.success) {
+        if (!result.success && !result.isCancelled) {
           throw Exception(result.errorMessage ?? 'Conversion failed');
+        }
+        
+        if (result.isCancelled) {
+          return null;
         }
         
         return result;
@@ -51,6 +60,7 @@ class DocumentConvertNotifier extends AsyncNotifier<ConversionResult?> {
   }
 
   void cancel() {
+    _cancelToken?.cancel('User cancelled');
     state = const AsyncData(null);
   }
 }

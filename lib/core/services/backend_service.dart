@@ -92,6 +92,7 @@ class BackendService {
     required String outputFilename,
     void Function(double progress, [String? stageLabel])? onProgress,
     bool skipPublish = false,
+    CancelToken? cancelToken,
   }) async {
     final stopwatch = Stopwatch()..start();
     final outputFormat = p.extension(outputFilename).replaceFirst('.', '');
@@ -122,31 +123,28 @@ class BackendService {
         }
       }
       final sizeMb = totalSizeBytes / (1024 * 1024);
-      // Heuristic: 10 seconds base overhead + 4 seconds per MB
-      final estimatedSeconds = (10 + (sizeMb * 4)).round();
-
-      String formatEta(double fractionRemaining) {
-        final remaining = (estimatedSeconds * fractionRemaining).round();
-        if (remaining > 60) {
-          return 'ETA: ${remaining ~/ 60}m ${remaining % 60}s';
+      String formatElapsed() {
+        final elapsed = stopwatch.elapsed.inSeconds;
+        if (elapsed > 60) {
+          return 'Elapsed: ${elapsed ~/ 60}m ${elapsed % 60}s';
         }
-        return 'ETA: ${remaining}s';
+        return 'Elapsed: ${elapsed}s';
       }
 
-      onProgress?.call(0.1, 'Uploading... (${formatEta(1.0)})');
-      final uploadedPaths = await _uploadFiles(prefix, filePaths);
+      onProgress?.call(0.1, 'Uploading... (${formatElapsed()})');
+      final uploadedPaths = await _uploadFiles(prefix, filePaths, cancelToken);
       final requestData = _buildRequestData(endpoint, uploadedPaths, fields);
 
-      onProgress?.call(0.3, 'Starting job... (${formatEta(0.8)})');
-      final eventId = await _startJob(prefix, apiName, requestData);
-      final resultData = await _awaitResult(prefix, apiName, eventId, onProgress, formatEta);
+      onProgress?.call(0.3, 'Starting job... (${formatElapsed()})');
+      final eventId = await _startJob(prefix, apiName, requestData, cancelToken);
+      final resultData = await _awaitResult(prefix, apiName, eventId, onProgress, formatElapsed, cancelToken);
 
       if (resultData.isEmpty || resultData.first == null) {
         return fail('Conversion finished but returned no file.');
       }
 
-      onProgress?.call(0.9, 'Downloading result... (${formatEta(0.2)})');
-      final fileSize = await _downloadResult(prefix, resultData.first, outputPath);
+      onProgress?.call(0.9, 'Downloading result... (${formatElapsed()})');
+      final fileSize = await _downloadResult(prefix, resultData.first, outputPath, cancelToken);
       
       if (skipPublish) {
         stopwatch.stop();
@@ -182,6 +180,16 @@ class BackendService {
     } on _BackendException catch (e) {
       return fail(e.message);
     } on DioException catch (e) {
+      if (CancelToken.isCancel(e)) {
+        stopwatch.stop();
+        return ConversionResult.failure(
+          outputPath: outputPath,
+          outputFormat: outputFormat,
+          errorMessage: 'Conversion was cancelled.',
+          durationMs: stopwatch.elapsedMilliseconds,
+          isCancelled: true,
+        );
+      }
       return fail(_describeDioError(e));
     } catch (e) {
       return fail('Unexpected error: $e');
@@ -189,7 +197,7 @@ class BackendService {
   }
 
   /// POSTs the input files to Gradio and returns the server-side paths.
-  Future<List<String>> _uploadFiles(String prefix, List<String> filePaths) async {
+  Future<List<String>> _uploadFiles(String prefix, List<String> filePaths, CancelToken? cancelToken) async {
     if (filePaths.isEmpty) return const [];
 
     final formData = FormData();
@@ -208,7 +216,7 @@ class BackendService {
       throw const _BackendException('None of the selected files could be read.');
     }
 
-    final response = await _dio.post('$prefix/upload', data: formData);
+    final response = await _dio.post('$prefix/upload', data: formData, cancelToken: cancelToken);
     final data = response.data;
     if (data is! List) {
       throw _BackendException('Unexpected upload response from server: ${_preview(data)}');
@@ -255,10 +263,12 @@ class BackendService {
     String prefix,
     String apiName,
     List<dynamic> requestData,
+    CancelToken? cancelToken,
   ) async {
     final response = await _dio.post(
       '$prefix/call/$apiName',
       data: {'data': requestData},
+      cancelToken: cancelToken,
     );
 
     final data = response.data;
@@ -274,11 +284,13 @@ class BackendService {
     String apiName,
     String eventId,
     void Function(double progress, [String? stageLabel])? onProgress,
-    String Function(double) formatEta,
+    String Function() formatElapsed,
+    CancelToken? cancelToken,
   ) async {
     final response = await _dio.get<ResponseBody>(
       '$prefix/call/$apiName/$eventId',
       options: Options(responseType: ResponseType.stream),
+      cancelToken: cancelToken,
     );
 
     final body = response.data;
@@ -308,10 +320,10 @@ class BackendService {
         case 'error':
           throw _BackendException(_describeServerError(payload));
         case 'generating':
-          onProgress?.call(0.5, 'Processing document... (${formatEta(0.5)})');
+          onProgress?.call(0.5, 'Processing document... (${formatElapsed()})');
           continue;
         case 'heartbeat':
-          onProgress?.call(0.5, 'Processing document... (${formatEta(0.5)})');
+          onProgress?.call(0.5, 'Processing document... (${formatElapsed()})');
           continue;
         default:
           continue;
@@ -335,6 +347,7 @@ class BackendService {
     String prefix,
     dynamic result,
     String outputPath,
+    CancelToken? cancelToken,
   ) async {
     String? url;
     if (result is Map) {
@@ -357,6 +370,7 @@ class BackendService {
     final response = await _dio.get<List<int>>(
       url,
       options: Options(responseType: ResponseType.bytes),
+      cancelToken: cancelToken,
     );
 
     final bytes = response.data;
