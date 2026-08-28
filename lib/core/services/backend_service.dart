@@ -115,14 +115,7 @@ class BackendService {
 
       final prefix = await _prefix();
       
-      int totalSizeBytes = 0;
-      for (final path in filePaths) {
-        final f = File(path);
-        if (await f.exists()) {
-          totalSizeBytes += await f.length();
-        }
-      }
-      final sizeMb = totalSizeBytes / (1024 * 1024);
+
       String formatElapsed() {
         final elapsed = stopwatch.elapsed.inSeconds;
         if (elapsed > 60) {

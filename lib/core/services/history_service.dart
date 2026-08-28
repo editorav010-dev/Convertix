@@ -140,7 +140,7 @@ class HistoryService {
           await markCompleted(
             id: id,
             outputFilename: result.outputPath.split(RegExp(r'[\\/]')).last,
-            fileSizeBytes: result.fileSizeBytes ?? 0,
+            fileSizeBytes: result.fileSizeBytes,
             contentUri: result.contentUri,
             displayLocation: result.displayLocation,
           );

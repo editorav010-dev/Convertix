@@ -15,14 +15,21 @@ import '../features/merge_pdf/merge_pdf_screen.dart';
 import '../features/split_pdf/split_pdf_screen.dart';
 import '../features/settings/licenses_screen.dart';
 import '../features/settings/settings_screen.dart';
+import '../features/onboarding/onboarding_screen.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
-final GoRouter appRouter = GoRouter(
-  initialLocation: '/',
-  navigatorKey: _rootNavigatorKey,
-  routes: [
-    StatefulShellRoute.indexedStack(
+GoRouter buildAppRouter(bool hasSeenOnboarding) {
+  return GoRouter(
+    initialLocation: hasSeenOnboarding ? '/' : '/onboarding',
+    navigatorKey: _rootNavigatorKey,
+    routes: [
+      GoRoute(
+        path: '/onboarding',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const PermissionsOnboardingScreen(),
+      ),
+      StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
         return AppShell(navigationShell: navigationShell);
       },
@@ -127,4 +134,5 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const LicensesScreen(),
     ),
   ],
-);
+  );
+}

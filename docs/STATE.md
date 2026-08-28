@@ -11,6 +11,7 @@ Phase 6C — COMPLETED ✅ (Bottom Navigation Shell)
 Phase 6A — COMPLETED ✅ (Fix Output Naming Fallbacks - Removed timestamps, relying on sequential suffixing)
 Phase 6D — COMPLETED ✅ (Implementation of Conversion History Database - Hive DB + 10 Tool Integration)
 Phase 6E — COMPLETED ✅ (Accurate Progress, ETA & Cancellation)
+Phase 6F — COMPLETED ✅ (Permissions Onboarding - First Launch Screen & Settings Fallbacks)
 Phase 6B — ON HOLD ⏸️ (Native Android Intent Resolver via ACTION_GET_CONTENT intercepted by OS. Pending user decision on Native BottomSheet)
 Phase 5 — IN PROGRESS 🟡 (Product Polish, Shared UX & Output Structure)
 in the v1.0.9 submission, and Phase 3 is blocked on the Play upload-key reset (not yet requested), so

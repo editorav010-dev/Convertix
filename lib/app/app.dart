@@ -4,7 +4,9 @@ import 'router.dart';
 import 'theme.dart';
 
 class ConvertixApp extends ConsumerWidget {
-  const ConvertixApp({super.key});
+  final bool hasSeenOnboarding;
+
+  const ConvertixApp({super.key, required this.hasSeenOnboarding});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -12,7 +14,7 @@ class ConvertixApp extends ConsumerWidget {
       title: 'Convertix',
       debugShowCheckedModeBanner: false,
       theme: appTheme,
-      routerConfig: appRouter,
+      routerConfig: buildAppRouter(hasSeenOnboarding),
     );
   }
 }

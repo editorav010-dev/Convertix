@@ -440,15 +440,26 @@ class _HistoryCard extends ConsumerWidget {
                 newOutputFilename: newName,
                 newDisplayLocation: newLocation ?? '',
               );
+            } else if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Permission denied. Please grant Media Management permission in Settings to modify files.')),
+              );
             }
           }
         }
         break;
       case 'delete':
+        bool deleted = true;
         if (entry.contentUri != null) {
-          await outputLocationService.deleteOutput(entry.contentUri!);
+          deleted = await outputLocationService.deleteOutput(entry.contentUri!);
         }
-        await historyService.deleteEntry(entry.id);
+        if (deleted) {
+          await historyService.deleteEntry(entry.id);
+        } else if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Permission denied. Please grant Media Management permission in Settings to delete files.')),
+          );
+        }
         break;
     }
   }

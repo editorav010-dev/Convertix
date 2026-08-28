@@ -348,17 +348,17 @@ first-launch permissions onboarding screen.
 - [x] After cancel: status "Cancelled" in history, no output file
 - [x] `flutter analyze` clean
 
-### Phase 6F — Permissions Onboarding 🔴 Not Started
+### Phase 6F — Permissions Onboarding 🟢 Completed
 
 **Goal:** First-launch screen explaining and requesting permissions.
 
-- [ ] Create `onboarding_screen.dart` — shown once before home screen
-- [ ] Dismiss state persisted to SharedPreferences
-- [ ] Request `MANAGE_MEDIA` (API 31+) — "rename and delete converted files"
-- [ ] Request `POST_NOTIFICATIONS` (API 33+) — "notify when conversion finishes"
-- [ ] App works without permissions; inline warning when denied feature is used
-- [ ] Permissions can be re-requested from Settings tab
-- [ ] `flutter analyze` clean
+- [x] Create `onboarding_screen.dart` — shown once before home screen
+- [x] Dismiss state persisted to SharedPreferences
+- [x] Request `MANAGE_MEDIA` (API 31+) — "rename and delete converted files"
+- [x] Request `POST_NOTIFICATIONS` (API 33+) — "notify when conversion finishes"
+- [x] App works without permissions; inline warning when denied feature is used
+- [x] Permissions can be re-requested from Settings tab
+- [x] `flutter analyze` clean
 
 ---
 
